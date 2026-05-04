@@ -1,4 +1,13 @@
 from datetime import datetime
+
+import os
+import platform
+import psutil
+
+try:
+    import docker
+except Exception:
+    docker = None
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
@@ -307,6 +316,63 @@ def patch_setting(key: str, payload: SettingUpdate, session: Session = Depends(g
     session.commit()
     session.refresh(obj)
     return _one_response(obj, "Setting updated")
+
+
+
+@app.get("/api/system/snapshot")
+def system_snapshot():
+    cpu_percent = psutil.cpu_percent(interval=0.2)
+    vm = psutil.virtual_memory()
+    du = psutil.disk_usage("/")
+
+    containers = []
+    docker_available = False
+    docker_error = None
+
+    if docker is not None:
+        try:
+            client = docker.from_env()
+            docker_available = True
+            for c in client.containers.list(all=True):
+                status = c.status
+                ports = c.attrs.get("NetworkSettings", {}).get("Ports", {})
+                try:
+                    image_name = c.image.tags[0] if c.image.tags else c.image.id[:12]
+                except Exception:
+                    image_name = c.attrs.get("Config", {}).get("Image", "unknown")
+                containers.append({
+                    "id": c.short_id,
+                    "name": c.name,
+                    "status": status,
+                    "image": image_name,
+                    "ports": ports,
+                })
+        except Exception as e:
+            docker_error = str(e)
+
+    data = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "host": {
+            "platform": platform.platform(),
+            "hostname": platform.node(),
+            "cpu_percent": cpu_percent,
+            "memory_percent": vm.percent,
+            "memory_used_mb": round(vm.used / (1024 * 1024), 2),
+            "memory_total_mb": round(vm.total / (1024 * 1024), 2),
+            "disk_percent": du.percent,
+            "disk_used_gb": round(du.used / (1024 * 1024 * 1024), 2),
+            "disk_total_gb": round(du.total / (1024 * 1024 * 1024), 2),
+            "load_avg": os.getloadavg() if hasattr(os, "getloadavg") else None,
+        },
+        "docker": {
+            "available": docker_available,
+            "error": docker_error,
+            "containers_total": len(containers),
+            "containers_running": len([c for c in containers if c["status"] == "running"]),
+            "containers": containers,
+        },
+    }
+    return APIResponse(success=True, data=data, message="OK")
 
 
 @app.post("/api/ai/generate-project-context")

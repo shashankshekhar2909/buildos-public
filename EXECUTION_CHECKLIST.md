@@ -17,13 +17,13 @@ Last updated: 2026-05-04
 - [x] `/api/prompts` 422 fixed and verified
 
 ## Open Items
-- [ ] Add live system snapshot module (Docker + host metrics)
+- [x] Add live system snapshot module (Docker + host metrics)
 - [ ] Add auth/user module and enforce login across app routes
 - [ ] Move backend to requested `8011` if existing service is reassigned/stopped
 - [ ] Add persisted Docker volume for backend DB
 - [ ] Add Phase 4 provider-backed AI generation (LiteLLM/OpenAI-compatible)
 
 ## Next Slice (Proposed)
-- [ ] Implement `/api/system/snapshot`
-- [ ] Collect Docker container stats + basic host metrics
-- [ ] Show live system tiles on dashboard
+- [x] Implement `/api/system/snapshot`
+- [x] Collect Docker container stats + basic host metrics
+- [x] Show live system tiles on dashboard

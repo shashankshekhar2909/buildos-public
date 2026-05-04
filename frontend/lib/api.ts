@@ -9,10 +9,23 @@ interface ListResp<T> {
   message: string;
 }
 
+interface OneResp<T> {
+  success: boolean;
+  data: T;
+  message: string;
+}
+
 async function fetchList<T>(path: string): Promise<T[]> {
   const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`API ${path} failed`);
   const json = (await res.json()) as ListResp<T>;
+  return json.data;
+}
+
+async function fetchOne<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`API ${path} failed`);
+  const json = (await res.json()) as OneResp<T>;
   return json.data;
 }
 
@@ -24,4 +37,5 @@ export const api = {
   tasks: () => fetchList<ApiItem>("/api/tasks"),
   knowledge: () => fetchList<ApiItem>("/api/knowledge"),
   settings: () => fetchList<ApiItem>("/api/settings"),
+  systemSnapshot: () => fetchOne<Record<string, unknown>>("/api/system/snapshot"),
 };

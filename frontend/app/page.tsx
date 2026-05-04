@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<ApiItem[]>(mockTasks as unknown as ApiItem[]);
   const [sessions, setSessions] = useState<ApiItem[]>(mockSessions as unknown as ApiItem[]);
   const [knowledge, setKnowledge] = useState<ApiItem[]>(mockNotes as unknown as ApiItem[]);
+  const [system, setSystem] = useState({ cpu: 0, mem: 0, containers: 0, running: 0 });
 
   useEffect(() => {
     Promise.all([api.projects(), api.prompts(), api.content(), api.tasks(), api.aiSessions(), api.knowledge()])
@@ -30,6 +31,17 @@ export default function DashboardPage() {
         setKnowledge(k);
       })
       .catch(() => undefined);
+
+    api.systemSnapshot().then((snap) => {
+      const host = (snap.host ?? {}) as Record<string, unknown>;
+      const docker = (snap.docker ?? {}) as Record<string, unknown>;
+      setSystem({
+        cpu: Number(host.cpu_percent ?? 0),
+        mem: Number(host.memory_percent ?? 0),
+        containers: Number(docker.containers_total ?? 0),
+        running: Number(docker.containers_running ?? 0),
+      });
+    }).catch(() => undefined);
   }, []);
 
   const metrics = [
@@ -45,6 +57,15 @@ export default function DashboardPage() {
     <>
       <PageHeader title="Dashboard" description="Operating snapshot for projects, tasks, content, and AI workflows." actionLabel="New Project" />
       <Grid fullWidth>{metrics.map(([label, value]) => <Column key={label} sm={4} md={4} lg={4} style={{ marginBottom: "1rem" }}><MetricTile label={label} value={value} /></Column>)}</Grid>
+
+      <h3>Live System Snapshot</h3>
+      <Grid fullWidth>
+        <Column sm={4} md={4} lg={4} style={{ marginBottom: "1rem" }}><MetricTile label="CPU %" value={Math.round(system.cpu)} /></Column>
+        <Column sm={4} md={4} lg={4} style={{ marginBottom: "1rem" }}><MetricTile label="Memory %" value={Math.round(system.mem)} /></Column>
+        <Column sm={4} md={4} lg={4} style={{ marginBottom: "1rem" }}><MetricTile label="Containers" value={system.containers} /></Column>
+        <Column sm={4} md={4} lg={4} style={{ marginBottom: "1rem" }}><MetricTile label="Running Containers" value={system.running} /></Column>
+      </Grid>
+
       <h3>Quick Actions</h3>
       <Grid fullWidth>
         <Column sm={4} md={4} lg={5}><ActionTile title="New Prompt" subtitle="Save a reusable prompt asset" href="/prompts" /></Column>
