@@ -92,13 +92,17 @@ Then access from LAN using your host IP:
 
 ## Manual Compose Commands
 
-Without Docker socket mode:
-
 ```bash
 docker compose up -d --build
 ```
 
-With Docker socket mode:
+Check status:
+
+```bash
+./scripts/status.sh
+```
+
+Enable live Docker visibility:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.docker.yml up -d --build

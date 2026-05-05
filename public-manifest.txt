@@ -27,6 +27,7 @@ frontend/middleware.ts
 frontend/next-env.d.ts
 
 scripts/bootstrap.sh
+scripts/status.sh
 
 docs/INDEX.md
 API_SPEC.md
