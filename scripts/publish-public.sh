@@ -9,6 +9,7 @@ PUBLIC_BRANCH="${PUBLIC_BRANCH:-main}"
 PUBLIC_REPO_URL="${PUBLIC_REPO_URL:-}"
 MANIFEST="${MANIFEST:-public-manifest.txt}"
 TMP_DIR="${TMP_DIR:-/tmp/buildos-public-export}"
+PUBLIC_README_TEMPLATE="${PUBLIC_README_TEMPLATE:-docs/public/README_PUBLIC.md}"
 
 if [[ ! -f "$MANIFEST" ]]; then
   echo "Manifest not found: $MANIFEST" >&2
@@ -41,6 +42,10 @@ while IFS= read -r line; do
     cp "$path" "$TMP_DIR/$path"
   fi
 done < "$MANIFEST"
+
+if [[ -f "$PUBLIC_README_TEMPLATE" ]]; then
+  cp "$PUBLIC_README_TEMPLATE" "$TMP_DIR/README.md"
+fi
 
 pushd "$TMP_DIR" >/dev/null
 git init -b "$PUBLIC_BRANCH" >/dev/null

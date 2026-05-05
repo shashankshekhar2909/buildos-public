@@ -1,6 +1,37 @@
+<div align="center">
+
 # BuildOS
 
-BuildOS is a private AI-native operating dashboard for projects, prompts, content, AI sessions, tasks, knowledge, deployments, and live Docker/container mapping.
+**Your private AI-native operating dashboard.**
+
+*One surface for every moving part of how you build with AI.*
+
+[![Stack](https://img.shields.io/badge/stack-Next.js%20%7C%20FastAPI%20%7C%20Docker-black?style=flat-square)]()
+[![UI](https://img.shields.io/badge/UI-Carbon%20Design%20System-0f62fe?style=flat-square)]()
+[![Mode](https://img.shields.io/badge/mode-private%20%7C%20LAN--first-success?style=flat-square)]()
+
+</div>
+
+---
+
+BuildOS is a private, self-hosted command center that unifies the scattered surface area of AI-native work: **projects, prompts, content, AI sessions, tasks, knowledge, deployments, and live Docker/container mapping**.
+
+It's not a chatbot. It's the dashboard you wish you had open next to the chatbot.
+
+### What's inside
+
+| Module | Purpose |
+| --- | --- |
+| **Projects** | Track every initiative, its goal, stack, and live URLs |
+| **Prompts** | Save, rate, and reuse the prompts that actually worked |
+| **Content** | Draft to schedule to ship across platforms |
+| **AI Sessions** | Log notable runs across Codex, Claude, Aider, and more |
+| **Tasks** | Lightweight execution tracking — no Jira tax |
+| **Knowledge** | Personal notes that survive the next context window |
+| **Deployments** | Internal/public URLs, Cloudflare routes, env at a glance |
+| **Docker** | Live host container visibility via read-only socket mount |
+| **Users** | Admin / Viewer roles for showcasing the tool |
+
 
 ## Portable Run (Any Machine)
 

@@ -10,8 +10,8 @@
 ## Product + UX Specs
 
 - `UI_SPEC.md`
-- `FRONTEND_SPEC.md`
-- `BACKEND_SPEC.md`
+- `docs/specs/FRONTEND_SPEC.md`
+- `docs/specs/BACKEND_SPEC.md`
 - `DATA_MODEL.md`
 - `API_SPEC.md`
 - `DEPLOYMENT.md`
@@ -22,19 +22,19 @@
 - `CLAUDE.md`
 - `AIDER.md`
 - `PROMPTS_FOR_AGENTS.md`
-- `AI_WORKFLOWS.md`
+- `docs/operations/AI_WORKFLOWS.md`
 
 ## Execution Tracking
 
-- `EXECUTION_CHECKLIST.md`
-- `REVERSE_SYNC_PLAN.md`
-- `UI_CLEANUP_CHECKLIST.md`
-- `FIRST_RUN.md`
+- `docs/planning/EXECUTION_CHECKLIST.md`
+- `docs/planning/REVERSE_SYNC_PLAN.md`
+- `docs/planning/UI_CLEANUP_CHECKLIST.md`
+- `docs/planning/FIRST_RUN.md`
 
 ## Seed + Demo Data
 
-- `SEED_DATA.md`
+- `docs/data/SEED_DATA.md`
 
 ## Note
 
-Core spec files remain at repo root intentionally to keep existing agent prompts and automation compatible.
+Core agent/spec files required by automation stay at repo root; supporting docs are grouped under `docs/`.

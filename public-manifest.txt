@@ -27,15 +27,19 @@ frontend/middleware.ts
 frontend/next-env.d.ts
 
 scripts/bootstrap.sh
-scripts/publish-public.sh
 
 docs/INDEX.md
 API_SPEC.md
 ARCHITECTURE.md
-BACKEND_SPEC.md
 DATA_MODEL.md
 DEPLOYMENT.md
-FRONTEND_SPEC.md
 PLAN.md
-SEED_DATA.md
 UI_SPEC.md
+docs/specs/BACKEND_SPEC.md
+docs/specs/FRONTEND_SPEC.md
+docs/data/SEED_DATA.md
+docs/operations/AI_WORKFLOWS.md
+docs/planning/EXECUTION_CHECKLIST.md
+docs/planning/FIRST_RUN.md
+docs/planning/REVERSE_SYNC_PLAN.md
+docs/planning/UI_CLEANUP_CHECKLIST.md
