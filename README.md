@@ -87,3 +87,21 @@ Stop:
 ```bash
 docker compose down
 ```
+
+## Dual Repo (Private + Public)
+
+Keep this repo private as source-of-truth, and publish a sanitized public snapshot to another repo.
+
+1. Add public remote:
+
+```bash
+git remote add public git@github.com:shashankshekhar2909/buildos-public.git
+```
+
+2. Publish public snapshot:
+
+```bash
+./scripts/publish-public.sh
+```
+
+The exporter uses `public-manifest.txt` as an allowlist and force-pushes only that curated snapshot to the public repo branch (`main` by default).
