@@ -56,6 +56,7 @@ SEED_PROFILE = os.getenv("SEED_PROFILE", "generic").strip().lower()
 DEFAULT_ADMIN_USERNAME = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
 DEFAULT_ADMIN_EMAIL = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@local")
 DEFAULT_ADMIN_PASSWORD = os.getenv("DEFAULT_ADMIN_PASSWORD", "change-me")
+AUTO_IMPORT_DISCOVERED_PROJECTS = os.getenv("AUTO_IMPORT_DISCOVERED_PROJECTS", "false").strip().lower() in {"1", "true", "yes", "on"}
 DISCOVERY_ROOTS = [
     Path(p.strip()).resolve()
     for p in os.getenv("PROJECTS_DISCOVERY_ROOTS", "").split(",")
@@ -228,6 +229,38 @@ def _scan_project_context_files(local_path: str | None) -> list[dict]:
     return found
 
 
+def _discover_project_folders() -> list[Path]:
+    roots = [PROJECTS_ROOT] + [r for r in DISCOVERY_ROOTS if r != PROJECTS_ROOT]
+    folders: list[Path] = []
+    for root in roots:
+        if not root.exists() or not root.is_dir():
+            continue
+        for child in sorted(root.iterdir(), key=lambda p: p.name.lower()):
+            if child.is_dir():
+                folders.append(child.resolve())
+    return folders
+
+
+def _import_project_folder(session: Session, folder: Path) -> bool:
+    slug = _slug_from_name(folder.name)
+    existing = session.exec(select(Project).where(Project.slug == slug)).first()
+    if existing:
+        return False
+    obj = Project(
+        name=folder.name,
+        slug=slug,
+        category="product",
+        status="active",
+        priority="medium",
+        goal=f"Imported from filesystem folder: {folder.name}",
+        local_path=str(folder),
+    )
+    session.add(obj)
+    session.commit()
+    session.refresh(obj)
+    return True
+
+
 def _sanitize_user(user: User):
     return {
         "id": user.id,
@@ -308,6 +341,14 @@ def on_startup() -> None:
                 proj.updated_at = datetime.utcnow()
                 session.add(proj)
         session.commit()
+
+        if AUTO_IMPORT_DISCOVERED_PROJECTS:
+            imported = 0
+            for folder in _discover_project_folders():
+                if _import_project_folder(session, folder):
+                    imported += 1
+            if imported:
+                session.commit()
 
         if session.exec(select(Deployment)).first() is None:
             buildos = session.exec(select(Project).where(Project.slug == "buildos")).first()

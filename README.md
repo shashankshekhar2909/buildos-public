@@ -79,6 +79,16 @@ This mounts Docker socket as read-only:
 
 If not mounted, Docker pages still load but show a safe "Docker access not configured" state.
 
+## Discover Existing Projects On This Machine
+
+If you want BuildOS to import existing project folders from this host, use the host-projects override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.host-projects.yml up -d --build
+```
+
+This mounts common local project roots read-only and auto-imports them into BuildOS.
+
 ## LAN Access
 
 Set host ports in `.env`:
@@ -115,6 +125,12 @@ Enable live Docker visibility:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.docker.yml up -d --build
+```
+
+Enable host project discovery:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.host-projects.yml up -d --build
 ```
 
 Stop:

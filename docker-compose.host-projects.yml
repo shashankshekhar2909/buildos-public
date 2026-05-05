@@ -1,0 +1,10 @@
+services:
+  backend:
+    environment:
+      - AUTO_IMPORT_DISCOVERED_PROJECTS=true
+      - PROJECTS_DISCOVERY_ROOTS=/app/projects,/host/app-projects,/host/project-roots,/host/claude-projects,/host/cursor-projects
+    volumes:
+      - /home/shashank/app/projects:/host/app-projects:ro
+      - /home/shashank/project:/host/project-roots:ro
+      - /home/shashank/.claude/projects:/host/claude-projects:ro
+      - /home/shashank/.cursor/projects:/host/cursor-projects:ro
