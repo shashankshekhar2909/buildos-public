@@ -69,6 +69,23 @@ Important:
 - Do not require Cloudflare API token in BuildOS frontend
 - Keep secret material only in trusted server runtime/env
 
+Docker mount example for BuildOS backend read-only discovery:
+
+```yaml
+services:
+  backend:
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/cloudflared:/etc/cloudflared:ro
+    environment:
+      - CLOUDFLARED_CONFIG_PATH=/etc/cloudflared/config.yml
+```
+
+BuildOS API (read-only):
+
+- `GET /api/cloudflare/routes` reads tunnel hostnames from cloudflared config.
+- It does not create DNS, tunnels, or Cloudflare routes.
+
 ## Access
 
 LAN:

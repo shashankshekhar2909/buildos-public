@@ -5,20 +5,23 @@ import {
   Button,
   Checkbox,
   Column,
-  CopyButton,
   Grid,
   InlineNotification,
   Modal,
+  OverflowMenu,
+  OverflowMenuItem,
   Search,
   Select,
   SelectItem,
   TextArea,
   TextInput,
-  Tile,
 } from "@carbon/react";
+import { Add } from "@carbon/icons-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EntityTable } from "@/components/shared/entity-table";
+import { StatusTag } from "@/components/shared/tags";
 import { api, type ApiItem } from "@/lib/api";
+import { copyText } from "@/lib/clipboard";
 import { fallbackDeployments, mapDeploymentRows, type DeploymentView } from "@/lib/deployments";
 
 type DeploymentForm = {
@@ -116,11 +119,16 @@ export default function DeploymentsPage() {
   const [deploymentRows, setDeploymentRows] = useState<ApiItem[]>([]);
   const [projects, setProjects] = useState<ApiItem[]>([]);
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState("all");
-  const [environment, setEnvironment] = useState("all");
-  const [project, setProject] = useState("all");
-  const [composeProject, setComposeProject] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [envFilter, setEnvFilter] = useState("all");
+  const [projectFilter, setProjectFilter] = useState("all");
   const [error, setError] = useState("");
+  const [cloudflareInfo, setCloudflareInfo] = useState<{ source: string; available: boolean; count: number; message: string }>({
+    source: "",
+    available: false,
+    count: 0,
+    message: "",
+  });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -128,11 +136,20 @@ export default function DeploymentsPage() {
   const [form, setForm] = useState<DeploymentForm>(emptyForm);
 
   const refresh = () =>
-    Promise.all([api.deployments(), api.projects()])
-      .then(([d, p]) => {
+    Promise.all([api.deployments(), api.projects(), api.cloudflareRoutes().catch(() => null)])
+      .then(([d, p, c]) => {
         setDeploymentRows(d);
         setProjects(p);
         setDeployments(mapDeploymentRows(d, p));
+        if (c) {
+          const routes = Array.isArray(c.routes) ? c.routes : [];
+          setCloudflareInfo({
+            source: String(c.source ?? ""),
+            available: Boolean(c.available),
+            count: routes.length,
+            message: String(c.message ?? ""),
+          });
+        }
         setError("");
       })
       .catch(() => setError("Backend unavailable. Showing fallback data."));
@@ -142,46 +159,33 @@ export default function DeploymentsPage() {
   }, []);
 
   const projectOptions = useMemo(() => unique(deployments.map((d) => d.project)), [deployments]);
-  const composeOptions = useMemo(() => unique(deployments.map((d) => d.dockerComposeProject)), [deployments]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return deployments.filter((d) => {
       const matchesSearch =
         term.length === 0 ||
-        [
-          d.project,
-          d.serviceName,
-          d.serviceType,
-          d.containerName,
-          d.internalUrl,
-          d.publicDomain,
-          d.publicUrl,
-          d.cloudflareRouteHostname,
-          d.dockerComposeProject,
-          d.dockerServiceName,
-          d.notes,
-        ]
+        [d.project, d.serviceName, d.internalUrl, d.publicDomain, d.publicUrl, d.cloudflareRouteHostname]
           .join(" ")
           .toLowerCase()
           .includes(term);
-
-      const matchesStatus = status === "all" || d.status === status;
-      const matchesEnv = environment === "all" || d.environment === environment;
-      const matchesProject = project === "all" || d.project === project;
-      const matchesCompose = composeProject === "all" || d.dockerComposeProject === composeProject;
-
-      return matchesSearch && matchesStatus && matchesEnv && matchesProject && matchesCompose;
+      const matchesStatus = statusFilter === "all" || d.status === statusFilter;
+      const matchesEnv = envFilter === "all" || d.environment === envFilter;
+      const matchesProject = projectFilter === "all" || d.project === projectFilter;
+      return matchesSearch && matchesStatus && matchesEnv && matchesProject;
     });
-  }, [deployments, q, status, environment, project, composeProject]);
+  }, [deployments, q, statusFilter, envFilter, projectFilter]);
 
-  const openEdit = useCallback((id: string) => {
-    const row = deploymentRows.find((r) => String(r.id) === id);
-    if (!row) return;
-    setActiveId(id);
-    setForm(toForm(row));
-    setIsEditOpen(true);
-  }, [deploymentRows]);
+  const openEdit = useCallback(
+    (id: string) => {
+      const row = deploymentRows.find((r) => String(r.id) === id);
+      if (!row) return;
+      setActiveId(id);
+      setForm(toForm(row));
+      setIsEditOpen(true);
+    },
+    [deploymentRows]
+  );
 
   const onCreate = async () => {
     if (!form.service_name.trim()) return;
@@ -213,46 +217,123 @@ export default function DeploymentsPage() {
       filtered.map((d) => ({
         id: d.id,
         project: d.project,
-        environment: d.environment,
         service: d.serviceName,
-        type: d.serviceType,
-        compose: `${d.dockerComposeProject}/${d.dockerServiceName}`,
-        container: d.containerName,
-        internal: d.internalUrl,
+        environment: d.environment,
+        internal: d.internalUrl || "-",
+        exposedAt: d.publicUrl || d.publicDomain || d.cloudflareRouteHostname || d.internalUrl || "-",
+        projectGit:
+          String(
+            projects.find((p) => Number(p.id) === d.projectId)?.github_url ??
+              projects.find((p) => Number(p.id) === d.projectId)?.git_url ??
+              projects.find((p) => Number(p.id) === d.projectId)?.repo_url ??
+              projects.find((p) => Number(p.id) === d.projectId)?.html_url ??
+              projects.find((p) => Number(p.id) === d.projectId)?.clone_url ??
+              "-"
+          ) || "-",
         public: d.publicUrl || "-",
-        cloudflare: d.cloudflareRouteHostname || "-",
-        status: d.status,
+        status: <StatusTag value={d.status} />,
         actions: (
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            <CopyButton iconDescription="Copy internal URL" onClick={() => navigator.clipboard.writeText(d.internalUrl)} />
-            <CopyButton iconDescription="Copy public URL" onClick={() => navigator.clipboard.writeText(d.publicUrl || "")} />
-            <CopyButton iconDescription="Copy cloudflared snippet" onClick={() => navigator.clipboard.writeText(`- hostname: ${d.cloudflareRouteHostname}\n  service: ${d.internalUrl}`)} />
-            <CopyButton iconDescription="Copy route mapping" onClick={() => navigator.clipboard.writeText(`${d.publicDomain} -> ${d.internalUrl}`)} />
-            <Button size="sm" kind="ghost" onClick={() => openEdit(d.id)}>Edit</Button>
-            <Button size="sm" kind="danger--ghost" onClick={() => { setActiveId(d.id); setIsDeleteOpen(true); }}>Delete</Button>
+          <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
+            <OverflowMenu size="sm" flipped iconDescription="Copy URLs">
+              <OverflowMenuItem
+                itemText="Copy internal URL"
+                onClick={() => {
+                  void copyText(d.internalUrl || "");
+                }}
+              />
+              <OverflowMenuItem
+                itemText="Copy public URL"
+                onClick={() => {
+                  void copyText(d.publicUrl || "");
+                }}
+              />
+              {d.cloudflareRouteHostname && (
+                <OverflowMenuItem
+                  itemText="Copy cloudflared snippet"
+                  onClick={() =>
+                    copyText(
+                      `- hostname: ${d.cloudflareRouteHostname}\n  service: ${d.internalUrl}`
+                    )
+                  }
+                />
+              )}
+              {d.publicDomain && d.internalUrl && (
+                <OverflowMenuItem
+                  itemText="Copy route mapping"
+                  onClick={() =>
+                    copyText(`${d.publicDomain} -> ${d.internalUrl}`)
+                  }
+                />
+              )}
+              <OverflowMenuItem
+                itemText="Copy docker logs command"
+                onClick={() =>
+                  copyText(
+                    d.containerName
+                      ? `docker logs --tail 200 -f ${d.containerName}`
+                      : "docker logs --tail 200 -f <container_name>"
+                  )
+                }
+              />
+            </OverflowMenu>
+            <Button size="sm" kind="ghost" onClick={() => openEdit(d.id)}>
+              Edit
+            </Button>
+            <Button
+              size="sm"
+              kind="danger--ghost"
+              onClick={() => {
+                setActiveId(d.id);
+                setIsDeleteOpen(true);
+              }}
+            >
+              Delete
+            </Button>
           </div>
         ),
       })),
-    [filtered, openEdit]
+    [filtered, openEdit, projects]
   );
 
   const formFields = (
     <div style={{ display: "grid", gap: "0.75rem" }}>
-      <Select id="project_id" labelText="Project" value={form.project_id} onChange={(e) => setForm((prev) => ({ ...prev, project_id: e.target.value }))}>
+      <Select
+        id="project_id"
+        labelText="Project"
+        value={form.project_id}
+        onChange={(e) => setForm((prev) => ({ ...prev, project_id: e.target.value }))}
+      >
         <SelectItem value="" text="Unmapped" />
-        {projects.map((p) => <SelectItem key={String(p.id)} value={String(p.id)} text={String(p.name)} />)}
+        {projects.map((p) => (
+          <SelectItem key={String(p.id)} value={String(p.id)} text={String(p.name)} />
+        ))}
       </Select>
-      <TextInput id="service_name" labelText="Service Name" value={form.service_name} onChange={(e) => setForm((prev) => ({ ...prev, service_name: e.target.value }))} />
+      <TextInput
+        id="service_name"
+        labelText="Service Name"
+        value={form.service_name}
+        onChange={(e) => setForm((prev) => ({ ...prev, service_name: e.target.value }))}
+      />
       <Grid condensed fullWidth>
         <Column sm={4} md={4} lg={8}>
-          <Select id="environment" labelText="Environment" value={form.environment} onChange={(e) => setForm((prev) => ({ ...prev, environment: e.target.value }))}>
+          <Select
+            id="environment"
+            labelText="Environment"
+            value={form.environment}
+            onChange={(e) => setForm((prev) => ({ ...prev, environment: e.target.value }))}
+          >
             <SelectItem value="local" text="local" />
             <SelectItem value="staging" text="staging" />
             <SelectItem value="production" text="production" />
           </Select>
         </Column>
         <Column sm={4} md={4} lg={8}>
-          <Select id="status" labelText="Status" value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}>
+          <Select
+            id="status"
+            labelText="Status"
+            value={form.status}
+            onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
+          >
             <SelectItem value="planned" text="planned" />
             <SelectItem value="active" text="active" />
             <SelectItem value="broken" text="broken" />
@@ -260,102 +341,231 @@ export default function DeploymentsPage() {
           </Select>
         </Column>
       </Grid>
-      <TextInput id="service_type" labelText="Service Type" value={form.service_type} onChange={(e) => setForm((prev) => ({ ...prev, service_type: e.target.value }))} />
-      <TextInput id="internal_url" labelText="Internal URL" value={form.internal_url} onChange={(e) => setForm((prev) => ({ ...prev, internal_url: e.target.value }))} />
-      <TextInput id="public_url" labelText="Public URL" value={form.public_url} onChange={(e) => setForm((prev) => ({ ...prev, public_url: e.target.value }))} />
-      <TextInput id="container_name" labelText="Container Name" value={form.container_name} onChange={(e) => setForm((prev) => ({ ...prev, container_name: e.target.value }))} />
-      <TextInput id="docker_compose_project" labelText="Compose Project" value={form.docker_compose_project} onChange={(e) => setForm((prev) => ({ ...prev, docker_compose_project: e.target.value }))} />
-      <TextInput id="docker_service_name" labelText="Compose Service" value={form.docker_service_name} onChange={(e) => setForm((prev) => ({ ...prev, docker_service_name: e.target.value }))} />
-      <TextInput id="cloudflare_route_hostname" labelText="Cloudflare Route Hostname" value={form.cloudflare_route_hostname} onChange={(e) => setForm((prev) => ({ ...prev, cloudflare_route_hostname: e.target.value }))} />
-      <Checkbox id="cloudflare_access_enabled" labelText="Cloudflare Access enabled" checked={form.cloudflare_access_enabled} onChange={(_, data) => setForm((prev) => ({ ...prev, cloudflare_access_enabled: Boolean(data.checked) }))} />
-      <TextArea id="notes" labelText="Notes" value={form.notes} onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))} rows={3} />
+      <TextInput
+        id="internal_url"
+        labelText="Internal URL"
+        value={form.internal_url}
+        onChange={(e) => setForm((prev) => ({ ...prev, internal_url: e.target.value }))}
+      />
+      <TextInput
+        id="public_url"
+        labelText="Public URL"
+        value={form.public_url}
+        onChange={(e) => setForm((prev) => ({ ...prev, public_url: e.target.value }))}
+      />
+      <TextInput
+        id="container_name"
+        labelText="Container Name"
+        value={form.container_name}
+        onChange={(e) => setForm((prev) => ({ ...prev, container_name: e.target.value }))}
+      />
+      <TextInput
+        id="docker_compose_project"
+        labelText="Compose Project"
+        value={form.docker_compose_project}
+        onChange={(e) => setForm((prev) => ({ ...prev, docker_compose_project: e.target.value }))}
+      />
+      <TextInput
+        id="docker_service_name"
+        labelText="Compose Service"
+        value={form.docker_service_name}
+        onChange={(e) => setForm((prev) => ({ ...prev, docker_service_name: e.target.value }))}
+      />
+      <TextInput
+        id="cloudflare_route_hostname"
+        labelText="Cloudflare Route Hostname"
+        value={form.cloudflare_route_hostname}
+        onChange={(e) => setForm((prev) => ({ ...prev, cloudflare_route_hostname: e.target.value }))}
+      />
+      <Checkbox
+        id="cloudflare_access_enabled"
+        labelText="Cloudflare Access enabled"
+        checked={form.cloudflare_access_enabled}
+        onChange={(_, data) =>
+          setForm((prev) => ({ ...prev, cloudflare_access_enabled: Boolean(data.checked) }))
+        }
+      />
+      <TextArea
+        id="notes"
+        labelText="Notes"
+        value={form.notes}
+        onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+        rows={3}
+      />
     </div>
   );
 
   return (
     <>
-      <PageHeader title="Deployments" description="Track Docker service routing, internal URLs, domains, and Cloudflare tunnel mappings." actionLabel="Add Deployment" />
-      <div style={{ marginBottom: "1rem", display: "flex", justifyContent: "flex-end" }}>
-        <Button onClick={() => { setForm(emptyForm); setIsCreateOpen(true); }}>Add Deployment</Button>
-      </div>
+      <PageHeader
+        title="Deployments"
+        description="Track Docker service routing, internal URLs, domains, and Cloudflare tunnel mappings."
+        actionLabel="Add Deployment"
+        onAction={() => {
+          setForm(emptyForm);
+          setIsCreateOpen(true);
+        }}
+      />
+
       <InlineNotification
         kind="warning"
         lowContrast
         hideCloseButton
-        title="Security warning"
+        title="Security"
         subtitle="Do not expose admin/internal services publicly without Cloudflare Access or Tailscale."
         style={{ marginBottom: "1rem" }}
       />
-      {error ? (
-        <InlineNotification kind="error" lowContrast hideCloseButton title="Live API unavailable" subtitle={error} style={{ marginBottom: "1rem" }} />
+      {cloudflareInfo.message ? (
+        <InlineNotification
+          kind={cloudflareInfo.available ? "success" : "info"}
+          lowContrast
+          hideCloseButton
+          title="Cloudflare Routes"
+          subtitle={`${cloudflareInfo.message} (${cloudflareInfo.count} discovered from ${cloudflareInfo.source || "configured path"})`}
+          style={{ marginBottom: "1rem" }}
+        />
       ) : null}
 
-      <Tile style={{ marginBottom: "1rem" }}>
-        <Grid fullWidth>
-          <Column sm={4} md={4} lg={6}>
-            <Search id="deployment-search" labelText="Search" placeholder="Search service, domain, container, compose..." value={q} onChange={(e) => setQ(e.target.value)} />
-          </Column>
-          <Column sm={4} md={2} lg={3}>
-            <Select id="deployment-status" labelText="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
-              <SelectItem value="all" text="All statuses" />
-              <SelectItem value="planned" text="planned" />
-              <SelectItem value="active" text="active" />
-              <SelectItem value="broken" text="broken" />
-              <SelectItem value="retired" text="retired" />
-            </Select>
-          </Column>
-          <Column sm={4} md={2} lg={3}>
-            <Select id="deployment-env" labelText="Environment" value={environment} onChange={(e) => setEnvironment(e.target.value)}>
-              <SelectItem value="all" text="All environments" />
-              <SelectItem value="local" text="local" />
-              <SelectItem value="staging" text="staging" />
-              <SelectItem value="production" text="production" />
-            </Select>
-          </Column>
-          <Column sm={4} md={2} lg={3}>
-            <Select id="deployment-project" labelText="Project" value={project} onChange={(e) => setProject(e.target.value)}>
-              <SelectItem value="all" text="All projects" />
-              {projectOptions.map((p) => <SelectItem key={p} value={p} text={p} />)}
-            </Select>
-          </Column>
-          <Column sm={4} md={2} lg={3}>
-            <Select id="deployment-compose" labelText="Compose Project" value={composeProject} onChange={(e) => setComposeProject(e.target.value)}>
-              <SelectItem value="all" text="All compose projects" />
-              {composeOptions.map((cp) => <SelectItem key={cp} value={cp} text={cp} />)}
-            </Select>
-          </Column>
-        </Grid>
-      </Tile>
-
-      <Tile>
-        <EntityTable
-          title={`Deployments (${rows.length})`}
-          headers={[
-            { key: "project", header: "Project" },
-            { key: "environment", header: "Env" },
-            { key: "service", header: "Service" },
-            { key: "type", header: "Type" },
-            { key: "compose", header: "Compose" },
-            { key: "container", header: "Container" },
-            { key: "internal", header: "Internal URL" },
-            { key: "public", header: "Public URL" },
-            { key: "cloudflare", header: "Cloudflare Route" },
-            { key: "status", header: "Status" },
-            { key: "actions", header: "Actions" },
-          ]}
-          rows={rows}
+      {error ? (
+        <InlineNotification
+          kind="error"
+          lowContrast
+          hideCloseButton
+          title="Live API unavailable"
+          subtitle={error}
+          style={{ marginBottom: "1rem" }}
         />
-      </Tile>
+      ) : null}
 
-      <Modal open={isCreateOpen} modalHeading="Add Deployment" primaryButtonText="Create" secondaryButtonText="Cancel" onRequestClose={() => setIsCreateOpen(false)} onRequestSubmit={() => { void onCreate(); }}>
+      {/* Filter bar */}
+      <div
+        style={{
+          display: "flex",
+          gap: "1rem",
+          flexWrap: "wrap",
+          alignItems: "flex-end",
+          marginBottom: "1rem",
+          padding: "1rem",
+          background: "var(--surface-1)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: "8px",
+        }}
+      >
+        <div style={{ flex: "1 1 16rem" }}>
+          <Search
+            id="deployment-search"
+            labelText="Search"
+            placeholder="Search service, domain, URL..."
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
+        <div style={{ minWidth: "10rem" }}>
+          <Select
+            id="deployment-status"
+            labelText="Status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <SelectItem value="all" text="All statuses" />
+            <SelectItem value="planned" text="planned" />
+            <SelectItem value="active" text="active" />
+            <SelectItem value="broken" text="broken" />
+            <SelectItem value="retired" text="retired" />
+          </Select>
+        </div>
+        <div style={{ minWidth: "10rem" }}>
+          <Select
+            id="deployment-env"
+            labelText="Environment"
+            value={envFilter}
+            onChange={(e) => setEnvFilter(e.target.value)}
+          >
+            <SelectItem value="all" text="All environments" />
+            <SelectItem value="local" text="local" />
+            <SelectItem value="staging" text="staging" />
+            <SelectItem value="production" text="production" />
+          </Select>
+        </div>
+        <div style={{ minWidth: "10rem" }}>
+          <Select
+            id="deployment-project"
+            labelText="Project"
+            value={projectFilter}
+            onChange={(e) => setProjectFilter(e.target.value)}
+          >
+            <SelectItem value="all" text="All projects" />
+            {projectOptions.map((p) => (
+              <SelectItem key={p} value={p} text={p} />
+            ))}
+          </Select>
+        </div>
+        <Button
+          kind="primary"
+          size="sm"
+          renderIcon={Add}
+          onClick={() => {
+            setForm(emptyForm);
+            setIsCreateOpen(true);
+          }}
+        >
+          Add Deployment
+        </Button>
+      </div>
+
+      <EntityTable
+        title={`Deployments (${rows.length})`}
+        headers={[
+          { key: "project", header: "Project" },
+          { key: "service", header: "Service" },
+          { key: "environment", header: "Environment" },
+          { key: "internal", header: "Internal URL" },
+          { key: "exposedAt", header: "Exposed At" },
+          { key: "projectGit", header: "Git Origin" },
+          { key: "public", header: "Public URL" },
+          { key: "status", header: "Status" },
+          { key: "actions", header: "Actions" },
+        ]}
+        rows={rows}
+      />
+
+      <Modal
+        open={isCreateOpen}
+        modalHeading="Add Deployment"
+        primaryButtonText="Create"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => setIsCreateOpen(false)}
+        onRequestSubmit={() => {
+          void onCreate();
+        }}
+      >
         {formFields}
       </Modal>
 
-      <Modal open={isEditOpen} modalHeading="Edit Deployment" primaryButtonText="Save" secondaryButtonText="Cancel" onRequestClose={() => setIsEditOpen(false)} onRequestSubmit={() => { void onUpdate(); }}>
+      <Modal
+        open={isEditOpen}
+        modalHeading="Edit Deployment"
+        primaryButtonText="Save"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => setIsEditOpen(false)}
+        onRequestSubmit={() => {
+          void onUpdate();
+        }}
+      >
         {formFields}
       </Modal>
 
-      <Modal open={isDeleteOpen} danger modalHeading="Delete Deployment" primaryButtonText="Delete" secondaryButtonText="Cancel" onRequestClose={() => setIsDeleteOpen(false)} onRequestSubmit={() => { void onDelete(); }}>
+      <Modal
+        open={isDeleteOpen}
+        danger
+        modalHeading="Delete Deployment"
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => setIsDeleteOpen(false)}
+        onRequestSubmit={() => {
+          void onDelete();
+        }}
+      >
         This will remove the deployment record from BuildOS.
       </Modal>
     </>

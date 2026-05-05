@@ -150,4 +150,5 @@ export const api = {
   },
   settings: () => fetchList<ApiItem>("/api/settings"),
   systemSnapshot: () => fetchOne<Record<string, unknown>>("/api/system/snapshot"),
+  cloudflareRoutes: () => fetchOne<Record<string, unknown>>("/api/cloudflare/routes"),
 };

@@ -1,9 +1,11 @@
 from datetime import datetime
 
 import os
+import re
 from pathlib import Path
 import platform
 import psutil
+import configparser
 
 try:
     import docker
@@ -48,6 +50,8 @@ app.add_middleware(
 )
 
 PROJECTS_ROOT = Path(os.getenv("PROJECTS_ROOT", "/home/shashank/app/projects")).resolve()
+CLOUDFLARED_CONFIG_PATH = os.getenv("CLOUDFLARED_CONFIG_PATH", "/etc/cloudflared/config.yml")
+BUILDOS_GITHUB_URL = os.getenv("BUILDOS_GITHUB_URL", "git@github.com:shashankshekhar2909/buildos.git")
 
 
 def _ensure_project_folder(slug: str) -> str:
@@ -66,6 +70,61 @@ def _safe_project_subpath(base: str, relative_path: str) -> Path:
 
 def _slug_from_name(value: str) -> str:
     return "-".join("".join(ch.lower() if ch.isalnum() else " " for ch in value).split())
+
+
+def _discover_cloudflare_routes_from_config(path: str) -> dict:
+    config_path = Path(path)
+    if not config_path.exists():
+        return {"available": False, "error": f"Config not found at {path}", "routes": []}
+
+    routes = []
+    current_host = None
+    current_service = None
+    hostname_re = re.compile(r"^\s*-\s*hostname:\s*(.+)\s*$")
+    service_re = re.compile(r"^\s*service:\s*(.+)\s*$")
+
+    try:
+        for raw in config_path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            host_match = hostname_re.match(raw)
+            if host_match:
+                if current_host:
+                    routes.append({"hostname": current_host, "service": current_service or ""})
+                current_host = host_match.group(1).strip().strip("'\"")
+                current_service = None
+                continue
+            service_match = service_re.match(raw)
+            if service_match and current_host:
+                current_service = service_match.group(1).strip().strip("'\"")
+        if current_host:
+            routes.append({"hostname": current_host, "service": current_service or ""})
+    except Exception as e:
+        return {"available": False, "error": str(e), "routes": []}
+
+    return {"available": True, "error": None, "routes": routes}
+
+
+def _read_git_origin(local_path: str | None) -> str | None:
+    if not local_path:
+        return None
+    config_path = Path(local_path) / ".git" / "config"
+    if not config_path.exists():
+        return None
+    parser = configparser.ConfigParser()
+    try:
+        parser.read(config_path, encoding="utf-8")
+        section = 'remote "origin"'
+        if parser.has_section(section) and parser.has_option(section, "url"):
+            return parser.get(section, "url")
+    except Exception:
+        return None
+    return None
+
+
+def _normalize_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
 
 
 def _sanitize_user(user: User):
@@ -89,7 +148,7 @@ def on_startup() -> None:
         if session.exec(select(Project)).first() is None:
             session.add_all(
                 [
-                    Project(name="BuildOS", slug="buildos", category="product", status="active", priority="critical", goal="Build a private AI-native operating dashboard.", tech_stack="Next.js, Carbon, FastAPI, SQLite, Docker"),
+                    Project(name="BuildOS", slug="buildos", category="product", status="active", priority="critical", goal="Build a private AI-native operating dashboard.", tech_stack="Next.js, Carbon, FastAPI, SQLite, Docker", github_url=BUILDOS_GITHUB_URL),
                     Project(name="AI Stack Lab", slug="ai-stack-lab", category="portfolio", status="active", priority="high", goal="Curated AI tools and workflow platform.", tech_stack="Next.js, SQLite, Docker", public_url="https://ai.buildwithshashank.com"),
                     Project(name="KnowMy Homelab", slug="knowmy-homelab", category="homelab", status="active", priority="high", goal="Public-safe homelab learning platform.", tech_stack="Proxmox, Docker, LiteLLM, Cloudflare, Next.js"),
                     Project(name="GhostPilot", slug="ghostpilot", category="product", status="active", priority="medium", goal="AI-assisted editorial dashboard.", tech_stack="FastAPI, Ghost CMS, Docker"),
@@ -134,6 +193,10 @@ def on_startup() -> None:
         for proj in session.exec(select(Project)).all():
             if not proj.local_path and proj.slug:
                 proj.local_path = _ensure_project_folder(proj.slug)
+                proj.updated_at = datetime.utcnow()
+                session.add(proj)
+            if proj.slug == "buildos" and not proj.github_url:
+                proj.github_url = BUILDOS_GITHUB_URL
                 proj.updated_at = datetime.utcnow()
                 session.add(proj)
         session.commit()
@@ -676,6 +739,116 @@ def system_snapshot():
         },
     }
     return APIResponse(success=True, data=data, message="OK")
+
+
+@app.get("/api/cloudflare/routes")
+def list_cloudflare_routes():
+    data = _discover_cloudflare_routes_from_config(CLOUDFLARED_CONFIG_PATH)
+    data["source"] = CLOUDFLARED_CONFIG_PATH
+    data["message"] = (
+        "Cloudflare routes loaded from cloudflared config."
+        if data.get("available")
+        else "Cloudflare routes unavailable. Mount cloudflared config and set CLOUDFLARED_CONFIG_PATH."
+    )
+    return APIResponse(success=True, data=data, message="OK")
+
+
+@app.post("/api/sync/discover-project-details")
+def sync_project_details(session: Session = Depends(get_session)):
+    projects = session.exec(select(Project)).all()
+    deployments = session.exec(select(Deployment)).all()
+    deployment_by_container = {d.container_name: d for d in deployments if d.container_name}
+
+    git_updated = 0
+    deployment_created = 0
+    deployment_updated = 0
+
+    for project in projects:
+        if not project.github_url:
+            origin = _read_git_origin(project.local_path)
+            if origin:
+                project.github_url = origin
+                project.updated_at = datetime.utcnow()
+                session.add(project)
+                git_updated += 1
+
+    if docker is not None:
+        try:
+            client = docker.from_env()
+            for container in client.containers.list(all=True):
+                attrs = container.attrs or {}
+                labels = attrs.get("Config", {}).get("Labels", {}) or {}
+                compose_project = labels.get("com.docker.compose.project")
+                compose_service = labels.get("com.docker.compose.service")
+
+                matched_project = None
+                for project in projects:
+                    keys = {_normalize_key(project.slug), _normalize_key(project.name)}
+                    cp = _normalize_key(compose_project) if compose_project else ""
+                    cn = _normalize_key(container.name)
+                    if cp in keys or any(k and (k in cn or cn in k) for k in keys):
+                        matched_project = project
+                        break
+
+                if not matched_project:
+                    continue
+
+                ports = attrs.get("NetworkSettings", {}).get("Ports", {}) or {}
+                first_port = None
+                if ports:
+                    first_key = next(iter(ports.keys()))
+                    try:
+                        first_port = int(str(first_key).split("/")[0])
+                    except Exception:
+                        first_port = None
+
+                internal_host = compose_service or container.name
+                internal_url = f"http://{internal_host}:{first_port}" if first_port else None
+                status = "active" if container.status == "running" else "broken"
+
+                existing = deployment_by_container.get(container.name)
+                if existing:
+                    existing.project_id = matched_project.id
+                    existing.docker_compose_project = compose_project
+                    existing.docker_service_name = compose_service
+                    existing.internal_host = internal_host
+                    existing.internal_port = first_port
+                    existing.internal_url = existing.internal_url or internal_url
+                    existing.status = existing.status or status
+                    existing.updated_at = datetime.utcnow()
+                    session.add(existing)
+                    deployment_updated += 1
+                else:
+                    obj = Deployment(
+                        project_id=matched_project.id,
+                        environment="local",
+                        service_name=container.name,
+                        service_type="other",
+                        docker_compose_project=compose_project,
+                        docker_service_name=compose_service,
+                        container_name=container.name,
+                        internal_host=internal_host,
+                        internal_port=first_port,
+                        internal_url=internal_url,
+                        status=status,
+                        notes="Auto-discovered from Docker metadata.",
+                    )
+                    session.add(obj)
+                    deployment_created += 1
+        except Exception:
+            pass
+
+    session.commit()
+    return APIResponse(
+        success=True,
+        data={
+            "projects_scanned": len(projects),
+            "git_updated": git_updated,
+            "deployment_created": deployment_created,
+            "deployment_updated": deployment_updated,
+        },
+        message="Project detail sync complete",
+    )
 
 
 @app.post("/api/ai/generate-project-context")

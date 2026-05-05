@@ -3,6 +3,7 @@ import { deployments as mockDeployments } from "@/lib/mock-data";
 
 export type DeploymentView = {
   id: string;
+  projectId: number | null;
   project: string;
   environment: string;
   serviceName: string;
@@ -36,6 +37,7 @@ export function mapDeploymentRows(rows: ApiItem[], projects: ApiItem[]): Deploym
     const projectName = projectId ? projectNameById.get(projectId) : null;
     return {
       id: String(row.id ?? index),
+      projectId: projectId,
       project: projectName ?? "Unmapped",
       environment: String(row.environment ?? "local"),
       serviceName: String(row.service_name ?? "Unknown Service"),
@@ -59,5 +61,5 @@ export function mapDeploymentRows(rows: ApiItem[], projects: ApiItem[]): Deploym
 }
 
 export function fallbackDeployments(): DeploymentView[] {
-  return mockDeployments.map((d) => ({ ...d }));
+  return mockDeployments.map((d) => ({ projectId: null, ...d }));
 }

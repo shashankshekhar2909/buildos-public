@@ -19,7 +19,6 @@ export default function SettingsPage() {
     const storedLan = localStorage.getItem(LS_LAN_ONLY);
     if (storedUrl) {
       setApiUrl(storedUrl);
-      api.baseUrl = storedUrl;
     }
     if (storedLan !== null) {
       setLanOnly(storedLan === "true");
@@ -29,7 +28,6 @@ export default function SettingsPage() {
   const handleSave = () => {
     localStorage.setItem(LS_API_URL, apiUrl);
     localStorage.setItem(LS_LAN_ONLY, String(lanOnly));
-    api.baseUrl = apiUrl;
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
     api.settings().then(() => undefined).catch(() => undefined);
@@ -71,7 +69,7 @@ export default function SettingsPage() {
               labelText="API base URL"
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
-              helperText="Persisted to localStorage. Applies immediately on Save."
+              helperText="Persisted to localStorage. Reload the app to apply a new URL."
               className="settings-input"
             />
             <Toggle

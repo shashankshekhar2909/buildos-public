@@ -106,6 +106,14 @@ export default function ProjectsPage() {
     category: project.category,
     status: <StatusTag value={String(project.status ?? "idea")} />,
     priority: <PriorityTag value={String(project.priority ?? "low")} />,
+    git: String(
+      project.github_url ??
+      project.git_url ??
+      project.repo_url ??
+      project.html_url ??
+      project.clone_url ??
+      "-"
+    ),
     updated: (project.updated_at || "").toString().slice(0, 10) || project.updatedDate || "-",
     actions: (
       <>
@@ -182,6 +190,7 @@ export default function ProjectsPage() {
           { key: "category", header: "Category" },
           { key: "status", header: "Status" },
           { key: "priority", header: "Priority" },
+          { key: "git", header: "Git Origin" },
           { key: "updated", header: "Updated" },
           { key: "actions", header: "Actions" },
         ]}

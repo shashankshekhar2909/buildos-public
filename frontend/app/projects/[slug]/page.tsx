@@ -23,6 +23,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PriorityTag, StatusTag } from "@/components/shared/tags";
 import { api, type ApiItem } from "@/lib/api";
+import { copyText } from "@/lib/clipboard";
 import { mapDeploymentRows, type DeploymentView } from "@/lib/deployments";
 
 export default function ProjectDetailPage() {
@@ -99,7 +100,17 @@ export default function ProjectDetailPage() {
           <Column sm={4} md={4} lg={8}>
             <p style={{ margin: 0 }}><strong>Local Path:</strong> <code>{String(project.local_path ?? "-")}</code></p>
             <p style={{ margin: "0.35rem 0 0" }}><strong>Public URL:</strong> {String(project.public_url ?? "-")}</p>
-            <p style={{ margin: "0.35rem 0 0" }}><strong>GitHub:</strong> {String(project.github_url ?? "-")}</p>
+            <p style={{ margin: "0.35rem 0 0" }}>
+              <strong>Git Origin:</strong>{" "}
+              {String(
+                project.github_url ??
+                project.git_url ??
+                project.repo_url ??
+                project.html_url ??
+                project.clone_url ??
+                "-"
+              )}
+            </p>
           </Column>
         </Grid>
       </Tile>
@@ -164,14 +175,24 @@ export default function ProjectDetailPage() {
                       <StructuredListCell>{d.serviceName}</StructuredListCell>
                       <StructuredListCell>{d.containerName || "-"}</StructuredListCell>
                       <StructuredListCell>{d.internalUrl || "-"}</StructuredListCell>
-                      <StructuredListCell>{d.publicUrl || "Private"}</StructuredListCell>
+                      <StructuredListCell>{d.publicUrl || d.publicDomain || d.cloudflareRouteHostname || "Private"}</StructuredListCell>
                       <StructuredListCell>
                         <StatusTag value={d.status} />
                       </StructuredListCell>
                       <StructuredListCell>
                         <div style={{ display: "flex", gap: "0.35rem" }}>
-                          <CopyButton iconDescription="Copy internal URL" onClick={() => navigator.clipboard.writeText(d.internalUrl || "")} />
-                          <CopyButton iconDescription="Copy public URL" onClick={() => navigator.clipboard.writeText(d.publicUrl || "")} />
+                          <CopyButton iconDescription="Copy internal URL" onClick={() => { void copyText(d.internalUrl || ""); }} />
+                          <CopyButton iconDescription="Copy public URL" onClick={() => { void copyText(d.publicUrl || ""); }} />
+                          <CopyButton
+                            iconDescription="Copy docker logs command"
+                            onClick={() =>
+                              copyText(
+                                d.containerName
+                                  ? `docker logs --tail 200 -f ${d.containerName}`
+                                  : "docker logs --tail 200 -f <container_name>"
+                              )
+                            }
+                          />
                         </div>
                       </StructuredListCell>
                     </StructuredListRow>
