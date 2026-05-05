@@ -1,0 +1,325 @@
+@use "@carbon/styles/scss/themes" as *;
+@use "@carbon/styles/scss/spacing" as *;
+@use "@carbon/styles/scss/breakpoint" as *;
+@use "@carbon/styles" with (
+  $theme: $g10
+);
+
+// ── Surface token layer (g10-only, mirrors ai-tools-dir premium palette) ──
+:root {
+  --surface-0: #f4f4f4;
+  --surface-1: #ffffff;
+  --surface-2: #e8e8e8;
+  --surface-hover: #e0e0e0;
+  --border-subtle: var(--cds-border-subtle-01);
+  --border-default: var(--cds-border-strong-01);
+  --border-focus: var(--cds-focus);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --accent: var(--cds-interactive);
+
+  // ── Spacing scale (maps to Carbon $spacing-0x tokens) ──
+  // $spacing-03 = 0.5rem  $spacing-04 = 0.75rem  $spacing-05 = 1rem
+  // $spacing-06 = 1.5rem  $spacing-07 = 2rem      $spacing-08 = 2.5rem
+  --space-xs: #{$spacing-03};   // 0.5rem  — tight inline gaps, tag rows
+  --space-sm: #{$spacing-04};   // 0.75rem — form field gaps, card internal
+  --space-md: #{$spacing-05};   // 1rem    — toolbar→table, column stack
+  --space-lg: #{$spacing-06};   // 1.5rem  — filter bar, between sections
+  --space-xl: #{$spacing-07};   // 2rem    — page header bottom, page padding
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--cds-background);
+}
+
+// Fix Carbon tile for cards — add breathing room to offset border-radius chrome
+.cds--tile {
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+  padding: $spacing-05; // override Carbon default (which is too tight at 1rem on some sizes)
+}
+
+// Carbon's .cds--content already applies padding and background.
+// We extend it: push right of the fixed sidebar, fill the viewport height,
+// and cap width so content doesn't sprawl on ultra-wide screens.
+.app-content {
+  margin-left: 256px;
+  min-height: 100vh;
+  padding: $spacing-07 $spacing-07 $spacing-09;
+  max-width: none; // let Carbon container handle width
+  box-sizing: border-box;
+  background: var(--cds-background);
+
+  @include breakpoint-down("md") {
+    margin-left: 0;
+    padding: $spacing-05;
+  }
+}
+
+.page-header {
+  // $spacing-06 (1.5rem) — enough separation without doubling with .section margin-top
+  margin-bottom: $spacing-06;
+}
+
+.page-header__row {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-05;
+  align-items: flex-start;
+  margin-top: $spacing-03; // 0.5rem — just enough to lift title off breadcrumb
+}
+
+.page-header__title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--cds-text-primary);
+  line-height: 1.2;
+}
+
+.page-header__description {
+  margin: $spacing-03 0 0;
+  color: var(--cds-text-secondary);
+  font-size: 0.875rem;
+  max-width: 60ch;
+}
+
+.section {
+  // $spacing-07 (2rem) — breathable but not sparse between dashboard sections
+  margin-top: $spacing-07;
+}
+
+.section-heading {
+  margin: 0 0 $spacing-04; // 0.75rem — tighter below heading before grid
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.32px;
+  text-transform: uppercase;
+  color: var(--cds-text-secondary);
+}
+
+.dashboard-grid {
+  margin-bottom: 0; // section spacing handles the gap; no extra bottom margin needed
+}
+
+.metric-tile {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  height: 100%;
+}
+
+.metric-tile__label {
+  margin: 0;
+  color: var(--cds-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.16px;
+}
+
+.metric-tile__value {
+  margin: $spacing-03 0 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--cds-text-primary);
+}
+
+.action-tile {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  height: 100%;
+  transition: border-color 70ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.action-tile__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--cds-text-primary);
+}
+
+.action-tile__subtitle {
+  margin: $spacing-03 0 0;
+  color: var(--cds-text-secondary);
+  font-size: 0.875rem;
+}
+
+.tile-clickable {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.tile-clickable:hover .action-tile,
+.tile-clickable:focus-visible .action-tile {
+  border-color: var(--border-focus);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+.tile-clickable:focus-visible {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: 2px;
+}
+
+// Shared filter bar — used on Knowledge, Deployments, and Users pages
+.filter-bar {
+  display: flex;
+  gap: $spacing-05;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: $spacing-06; // 1.5rem — consistent gap before table/grid
+  padding: $spacing-05;
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.filter-bar__search {
+  flex: 1 1 16rem;
+  max-width: 32rem;
+}
+
+.filter-bar__select {
+  min-width: 10rem;
+}
+
+.knowledge-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-04;
+}
+
+.knowledge-card__text {
+  margin: 0;
+  color: var(--cds-text-primary);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  // 3-line clamp
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.knowledge-card__meta {
+  margin: 0;
+  color: var(--cds-text-secondary);
+  font-size: 0.75rem;
+}
+
+.detail-tile {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: $spacing-06; // 1.5rem — consistent section-level gap
+}
+
+// User card for card-view on /users
+.user-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-03;
+}
+
+.user-card__name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--cds-text-primary);
+}
+
+.user-card__email {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--cds-text-secondary);
+}
+
+.user-card__meta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary);
+}
+
+.tag-row {
+  display: flex;
+  gap: $spacing-03;
+  flex-wrap: wrap;
+}
+
+// Consistent bottom gap for stacked inline notifications
+.notification--stacked {
+  margin-bottom: $spacing-05; // 1rem
+}
+
+.empty-state {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  text-align: left;
+  padding: $spacing-06; // 1.5rem — was $spacing-07 (2rem), slightly less sparse
+}
+
+.empty-state__icon {
+  color: var(--cds-text-secondary);
+  margin-bottom: $spacing-04;
+}
+
+.empty-state__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--cds-text-primary);
+}
+
+.empty-state__description {
+  margin: $spacing-03 0 $spacing-05;
+  color: var(--cds-text-secondary);
+  font-size: 0.875rem;
+  max-width: 56ch;
+}
+
+.column--stack {
+  margin-bottom: $spacing-05; // 1rem — gutter below each card in a grid row
+}
+
+.settings-input {
+  margin-bottom: $spacing-06; // 1.5rem — give form fields a bit more room
+}
+
+.login-page {
+  min-height: calc(100vh - 3rem);
+  display: grid;
+  place-items: center;
+  padding: $spacing-06;
+}
+
+.login-card {
+  width: min(100%, 28rem);
+  border: 1px solid var(--border-subtle);
+}
+
+.structured-list-row__title {
+  font-weight: 500;
+  color: var(--cds-text-primary);
+}
+
+@include breakpoint-down("md") {
+  .cds--side-nav--fixed {
+    display: none;
+  }
+
+  .app-content {
+    margin-left: 0;
+  }
+}
