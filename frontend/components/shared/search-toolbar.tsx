@@ -1,4 +1,4 @@
-import { Search, Select, SelectItem } from "@carbon/react";
+import { TableToolbarContent, TableToolbarSearch, Select, SelectItem } from "@carbon/react";
 
 interface Props {
   searchLabel?: string;
@@ -8,10 +8,15 @@ interface Props {
 
 export function SearchToolbar({ searchLabel = "Search", filterA, filterB }: Props) {
   return (
-    <div className="toolbar">
-      <Search id="search" labelText={searchLabel} placeholder={searchLabel} size="lg" />
+    <TableToolbarContent>
+      <TableToolbarSearch
+        id="search"
+        persistent
+        placeholder={searchLabel}
+        onChange={() => undefined}
+      />
       {filterA ? (
-        <Select id={filterA.id} labelText={filterA.label} defaultValue="all" size="lg">
+        <Select id={filterA.id} labelText={filterA.label} defaultValue="all">
           <SelectItem text={`All ${filterA.label}`} value="all" />
           {filterA.items.map((item) => (
             <SelectItem key={item} text={item} value={item} />
@@ -19,13 +24,13 @@ export function SearchToolbar({ searchLabel = "Search", filterA, filterB }: Prop
         </Select>
       ) : null}
       {filterB ? (
-        <Select id={filterB.id} labelText={filterB.label} defaultValue="all" size="lg">
+        <Select id={filterB.id} labelText={filterB.label} defaultValue="all">
           <SelectItem text={`All ${filterB.label}`} value="all" />
           {filterB.items.map((item) => (
             <SelectItem key={item} text={item} value={item} />
           ))}
         </Select>
       ) : null}
-    </div>
+    </TableToolbarContent>
   );
 }

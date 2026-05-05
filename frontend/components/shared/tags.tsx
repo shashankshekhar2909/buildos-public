@@ -7,16 +7,23 @@ export function StatusTag({ value }: { value: string }) {
   const tagType: TagType =
     normalized === "active" || normalized === "ready" || normalized === "published"
       ? "green"
-      : normalized === "paused" || normalized === "review"
+      : normalized === "in_progress"
+      ? "teal"
+      : normalized === "review"
       ? "purple"
-      : normalized === "open" || normalized === "draft" || normalized === "idea" || normalized === "todo" || normalized === "in_progress"
+      : normalized === "paused" || normalized === "blocked"
+      ? "warm-gray"
+      : normalized === "open" || normalized === "draft" || normalized === "idea" || normalized === "todo"
       ? "blue"
+      : normalized === "done" || normalized === "archived"
+      ? "gray"
       : "gray";
-  return <Tag type={tagType}>{normalized}</Tag>;
+  return <Tag type={tagType} size="sm">{normalized}</Tag>;
 }
 
 export function PriorityTag({ value }: { value: string }) {
   const normalized = value || "low";
-  const tagType: TagType = normalized === "critical" ? "red" : normalized === "high" ? "magenta" : normalized === "medium" ? "blue" : "gray";
-  return <Tag type={tagType}>{normalized}</Tag>;
+  const tagType: TagType =
+    normalized === "critical" ? "red" : normalized === "high" ? "magenta" : normalized === "medium" ? "blue" : "gray";
+  return <Tag type={tagType} size="sm">{normalized}</Tag>;
 }

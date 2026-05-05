@@ -1,11 +1,27 @@
 import { Tile, Button } from "@carbon/react";
 
-export function EmptyState({ title, description, actionLabel }: { title: string; description: string; actionLabel: string }) {
+interface Props {
+  title: string;
+  description: string;
+  actionLabel?: string;
+  icon?: React.ComponentType<{ size?: number }>;
+}
+
+export function EmptyState({ title, description, actionLabel, icon: Icon }: Props) {
   return (
-    <Tile>
-      <h3 style={{ marginTop: 0 }}>{title}</h3>
-      <p style={{ color: "#525252" }}>{description}</p>
-      <Button kind="tertiary">{actionLabel}</Button>
+    <Tile className="empty-state">
+      {Icon && (
+        <div className="empty-state__icon">
+          <Icon size={32} />
+        </div>
+      )}
+      <h3 className="empty-state__title">{title}</h3>
+      <p className="empty-state__description">{description}</p>
+      {actionLabel && (
+        <Button kind="ghost" size="sm">
+          {actionLabel}
+        </Button>
+      )}
     </Tile>
   );
 }

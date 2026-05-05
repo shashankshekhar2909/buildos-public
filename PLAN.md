@@ -1,5 +1,3 @@
-# PLAN.md
-
 ## BuildOS Build Plan
 
 This plan keeps the app focused and useful.
@@ -163,15 +161,26 @@ Generate agent context files for any selected project.
 
 ---
 
-## Phase 5: Content + Prompt AI Helpers
+## Phase 5 (V1.5): Deployment Registry and Service Routing
 
-Add later:
+### Goal
 
-- Generate content draft
-- Improve prompt
-- Notes to tasks
+Track project to Docker/Cloudflare routing metadata in BuildOS (read/write metadata only, no automation).
 
-Do not build before Phase 4.
+### Scope
+
+- Deployments module and `/deployments` page
+- Project Detail Deployments tab
+- Service routing snapshot on dashboard
+- Model/API planning for deployment records
+- Cloudflare Tunnel docker-compose documentation snippets
+
+### Non-goals
+
+- No Cloudflare API automation
+- No DNS creation
+- No token handling
+- No mutation of running Docker services
 
 ---
 
@@ -185,6 +194,7 @@ Search across:
 - AI Sessions
 - Tasks
 - Knowledge Notes
+- Deployments
 
 Use simple SQL search first.
 
@@ -210,3 +220,4 @@ Optional later:
 - litellm
 - postgres
 - typesense
+- cloudflared

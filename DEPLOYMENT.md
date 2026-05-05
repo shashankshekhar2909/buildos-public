@@ -1,5 +1,3 @@
-# DEPLOYMENT.md
-
 ## Target
 
 Run BuildOS on Proxmox using Docker Compose.
@@ -46,6 +44,31 @@ Do not add Postgres in V1 unless needed.
 
 SQLite is enough.
 
+## Cloudflare Tunnel Example (Optional, V1 Registry Support)
+
+```yaml
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel run
+    restart: unless-stopped
+    networks:
+      - app
+```
+
+Route concept (tracked in BuildOS Deployments UI):
+
+```txt
+buildos.example.com -> http://frontend:3000
+buildos-api.example.com -> http://backend:8000
+```
+
+Important:
+
+- Do not automate DNS/API changes in V1
+- Do not require Cloudflare API token in BuildOS frontend
+- Keep secret material only in trusted server runtime/env
+
 ## Access
 
 LAN:
@@ -69,6 +92,8 @@ Cloudflare Tunnel + Access
 ## Warning
 
 Do not expose BuildOS publicly before auth or Cloudflare Access is configured.
+
+Do not expose admin/internal services publicly without Cloudflare Access or Tailscale.
 
 ## Backup
 

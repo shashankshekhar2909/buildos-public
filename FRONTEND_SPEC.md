@@ -90,6 +90,7 @@ Do not introduce a conflicting styling approach.
  /tasks
  /knowledge
  /settings
+ /deployments
 ```
 
 ## Key Components
@@ -130,3 +131,33 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ```
 
 Do not expose secrets.
+
+
+## Deployments
+
+Route:
+
+```txt
+/deployments
+```
+
+Track service routing metadata:
+
+- Project
+- Environment
+- Service name/type
+- Docker compose project/service
+- Container
+- Internal URL
+- Public domain/URL
+- Cloudflare tunnel + route hostname
+- Cloudflare Access enabled
+- Health check URL
+- Status
+- Notes
+
+Safety copy:
+
+```txt
+Do not expose admin/internal services publicly without Cloudflare Access or Tailscale.
+```

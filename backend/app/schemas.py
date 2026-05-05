@@ -175,3 +175,63 @@ class KnowledgeUpdate(BaseModel):
 class SettingUpdate(BaseModel):
     value: str
     is_secret: bool = False
+
+
+class DeploymentCreate(BaseModel):
+    project_id: Optional[int] = None
+    environment: str = "local"
+    service_name: str
+    service_type: str = "other"
+    docker_compose_project: Optional[str] = None
+    docker_service_name: Optional[str] = None
+    container_name: Optional[str] = None
+    internal_host: Optional[str] = None
+    internal_port: Optional[int] = None
+    internal_url: Optional[str] = None
+    public_domain: Optional[str] = None
+    public_url: Optional[str] = None
+    cloudflare_tunnel_name: Optional[str] = None
+    cloudflare_route_hostname: Optional[str] = None
+    cloudflare_access_enabled: bool = False
+    health_check_url: Optional[str] = None
+    status: str = "planned"
+    notes: Optional[str] = None
+
+
+class DeploymentUpdate(BaseModel):
+    project_id: Optional[int] = None
+    environment: Optional[str] = None
+    service_name: Optional[str] = None
+    service_type: Optional[str] = None
+    docker_compose_project: Optional[str] = None
+    docker_service_name: Optional[str] = None
+    container_name: Optional[str] = None
+    internal_host: Optional[str] = None
+    internal_port: Optional[int] = None
+    internal_url: Optional[str] = None
+    public_domain: Optional[str] = None
+    public_url: Optional[str] = None
+    cloudflare_tunnel_name: Optional[str] = None
+    cloudflare_route_hostname: Optional[str] = None
+    cloudflare_access_enabled: Optional[bool] = None
+    health_check_url: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class UserCreate(BaseModel):
+    username: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    role: str = "member"
+    password: str
+    is_active: bool = True
+
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    role: Optional[str] = None
+    password: Optional[str] = None
+    is_active: Optional[bool] = None

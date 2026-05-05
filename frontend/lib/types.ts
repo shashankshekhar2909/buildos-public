@@ -56,3 +56,26 @@ export interface KnowledgeNote {
   project?: string;
   status: "active" | "planned";
 }
+
+export interface Deployment {
+  id: string;
+  project: string;
+  environment: "local" | "staging" | "production";
+  serviceName: string;
+  serviceType: "frontend" | "backend" | "database" | "worker" | "tunnel" | "other";
+  dockerComposeProject: string;
+  dockerServiceName: string;
+  containerName: string;
+  internalHost: string;
+  internalPort: number | null;
+  internalUrl: string;
+  publicDomain: string;
+  publicUrl: string;
+  cloudflareTunnelName: string;
+  cloudflareRouteHostname: string;
+  cloudflareAccessEnabled: boolean;
+  healthCheckUrl: string;
+  status: "planned" | "active" | "broken" | "retired";
+  notes: string;
+  internalPath?: string;
+}

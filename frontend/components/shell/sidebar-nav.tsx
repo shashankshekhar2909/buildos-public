@@ -2,35 +2,56 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SideNavLink } from "@carbon/react";
+import {
+  Dashboard,
+  FolderDetails,
+  Query,
+  Document,
+  Bot,
+  Checkmark,
+  Book,
+  Settings,
+  DeploymentUnitData,
+} from "@carbon/icons-react";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const NavLink = SideNavLink as any;
 
 const nav = [
-  ["/", "Dashboard"],
-  ["/projects", "Projects"],
-  ["/prompts", "Prompts"],
-  ["/content", "Content Lab"],
-  ["/ai-sessions", "AI Sessions"],
-  ["/tasks", "Tasks"],
-  ["/knowledge", "Knowledge"],
-  ["/settings", "Settings"],
+  { href: "/", label: "Dashboard", icon: Dashboard },
+  { href: "/projects", label: "Projects", icon: FolderDetails },
+  { href: "/deployments", label: "Deployments", icon: DeploymentUnitData },
+  { href: "/prompts", label: "Prompts", icon: Query },
+  { href: "/content", label: "Content Lab", icon: Document },
+  { href: "/ai-sessions", label: "AI Sessions", icon: Bot },
+  { href: "/tasks", label: "Tasks", icon: Checkmark },
+  { href: "/knowledge", label: "Knowledge", icon: Book },
+  { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 export function SidebarNav() {
   const pathname = usePathname();
 
   return (
-    <aside className="app-sidebar">
-      <div style={{ padding: "0 1rem 1rem", borderBottom: "1px solid #f0f0f0", marginBottom: "0.75rem" }}>
-        <p style={{ margin: 0, fontSize: "0.75rem", color: "#6f6f6f" }}>BuildWithShashank</p>
-        <h2 style={{ margin: "0.25rem 0 0", fontSize: "1.25rem" }}>BuildOS</h2>
-      </div>
-      {nav.map(([href, label]) => {
-        const active = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+    <>
+      {nav.map(({ href, label, icon: Icon }) => {
+        const active =
+          href === "/"
+            ? pathname === "/"
+            : pathname === href || pathname.startsWith(`${href}/`);
         return (
-          <Link key={href} href={href} className={`sidebar-link${active ? " active" : ""}`}>
+          <NavLink
+            key={href}
+            as={Link}
+            href={href}
+            renderIcon={Icon}
+            isActive={active}
+          >
             {label}
-          </Link>
+          </NavLink>
         );
       })}
-    </aside>
+    </>
   );
 }

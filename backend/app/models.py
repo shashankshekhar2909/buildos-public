@@ -102,3 +102,39 @@ class Setting(SQLModel, table=True):
     is_secret: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Deployment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: Optional[int] = Field(default=None, index=True)
+    environment: str = Field(default="local", index=True)
+    service_name: str
+    service_type: str = Field(default="other", index=True)
+    docker_compose_project: Optional[str] = None
+    docker_service_name: Optional[str] = None
+    container_name: Optional[str] = None
+    internal_host: Optional[str] = None
+    internal_port: Optional[int] = None
+    internal_url: Optional[str] = None
+    public_domain: Optional[str] = None
+    public_url: Optional[str] = None
+    cloudflare_tunnel_name: Optional[str] = None
+    cloudflare_route_hostname: Optional[str] = None
+    cloudflare_access_enabled: bool = False
+    health_check_url: Optional[str] = None
+    status: str = Field(default="planned", index=True)
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    username: str = Field(index=True, unique=True)
+    email: Optional[str] = Field(default=None, index=True, unique=True)
+    full_name: Optional[str] = None
+    role: str = Field(default="member", index=True)
+    password: str
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)

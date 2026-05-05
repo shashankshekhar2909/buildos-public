@@ -1,5 +1,3 @@
-# DATA_MODEL.md
-
 ## Entities
 
 V1 entities:
@@ -11,6 +9,7 @@ V1 entities:
 5. Task
 6. KnowledgeNote
 7. Setting
+8. Deployment (V1.5)
 
 ## Project
 
@@ -31,38 +30,6 @@ created_at
 updated_at
 ```
 
-Status:
-
-```txt
-idea
-active
-paused
-shipped
-archived
-```
-
-Category:
-
-```txt
-portfolio
-homelab
-product
-career
-content
-client
-learning
-business
-```
-
-Priority:
-
-```txt
-low
-medium
-high
-critical
-```
-
 ## Prompt
 
 ```txt
@@ -79,33 +46,6 @@ tags
 rating
 created_at
 updated_at
-```
-
-Category:
-
-```txt
-coding
-architecture
-content
-resume
-seo
-research
-image
-homelab
-interview
-business
-```
-
-Tool:
-
-```txt
-codex
-claude
-aider
-groq
-chatgpt
-openwebui
-custom
 ```
 
 ## ContentItem
@@ -129,32 +69,6 @@ created_at
 updated_at
 ```
 
-Platform:
-
-```txt
-linkedin
-x
-blog
-youtube
-instagram
-reddit
-newsletter
-website
-```
-
-Status:
-
-```txt
-idea
-draft
-review
-ready
-scheduled
-published
-repurpose
-archived
-```
-
 ## AISession
 
 ```txt
@@ -173,16 +87,6 @@ created_at
 updated_at
 ```
 
-Source module:
-
-```txt
-manual
-project_context_generator
-content_lab
-prompt_improver
-notes_to_tasks
-```
-
 ## Task
 
 ```txt
@@ -198,16 +102,6 @@ created_at
 updated_at
 ```
 
-Status:
-
-```txt
-todo
-in_progress
-blocked
-done
-cancelled
-```
-
 ## KnowledgeNote
 
 ```txt
@@ -221,19 +115,6 @@ created_at
 updated_at
 ```
 
-Source type:
-
-```txt
-manual
-markdown
-chat
-research
-meeting
-codebase
-homelab
-interview
-```
-
 ## Setting
 
 ```txt
@@ -245,15 +126,58 @@ created_at
 updated_at
 ```
 
-Setting keys:
+## Deployment (V1.5 Service Registry)
 
 ```txt
-ai.litellm_base_url
-ai.default_model
-ai.temperature
-ai.max_tokens
-app.theme
-backup.path
+id
+project_id
+environment
+service_name
+service_type
+docker_compose_project
+docker_service_name
+container_name
+internal_host
+internal_port
+internal_url
+public_domain
+public_url
+cloudflare_tunnel_name
+cloudflare_route_hostname
+cloudflare_access_enabled
+health_check_url
+status
+notes
+created_at
+updated_at
+```
+
+Environments:
+
+```txt
+local
+staging
+production
+```
+
+Service types:
+
+```txt
+frontend
+backend
+database
+worker
+tunnel
+other
+```
+
+Deployment status:
+
+```txt
+planned
+active
+broken
+retired
 ```
 
 ## Relationships
@@ -264,4 +188,5 @@ Project has many ContentItems
 Project has many AISessions
 Project has many Tasks
 Project has many KnowledgeNotes
+Project has many Deployments
 ```

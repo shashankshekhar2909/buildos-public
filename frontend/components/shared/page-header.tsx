@@ -5,22 +5,36 @@ interface Props {
   title: string;
   description: string;
   actionLabel?: string;
+  onAction?: () => void;
+  breadcrumbs?: { label: string; href?: string }[];
 }
 
-export function PageHeader({ title, description, actionLabel }: Props) {
+export function PageHeader({ title, description, actionLabel, onAction, breadcrumbs }: Props) {
   return (
     <div className="page-header">
-      <Breadcrumb noTrailingSlash>
-        <BreadcrumbItem href="/">BuildOS</BreadcrumbItem>
-        <BreadcrumbItem isCurrentPage>{title}</BreadcrumbItem>
-      </Breadcrumb>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "flex-start", marginTop: "0.75rem" }}>
+      {breadcrumbs && breadcrumbs.length > 0 && (
+        <Breadcrumb noTrailingSlash>
+          {breadcrumbs.map((crumb, i) => {
+            const isLast = i === breadcrumbs.length - 1;
+            return (
+              <BreadcrumbItem
+                key={crumb.label}
+                href={crumb.href}
+                isCurrentPage={isLast}
+              >
+                {crumb.label}
+              </BreadcrumbItem>
+            );
+          })}
+        </Breadcrumb>
+      )}
+      <div className="page-header__row">
         <div>
-          <h1 style={{ margin: 0 }}>{title}</h1>
-          <p style={{ margin: "0.35rem 0 0", color: "#525252" }}>{description}</p>
+          <h1 className="page-header__title">{title}</h1>
+          <p className="page-header__description">{description}</p>
         </div>
-        {actionLabel ? (
-          <Button renderIcon={Add} kind="primary" size="md">
+        {actionLabel && onAction ? (
+          <Button renderIcon={Add} kind="primary" size="sm" onClick={onAction}>
             {actionLabel}
           </Button>
         ) : null}

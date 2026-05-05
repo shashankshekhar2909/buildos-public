@@ -1,4 +1,4 @@
-import { AISession, ContentItem, KnowledgeNote, Project, Prompt, Task } from "@/lib/types";
+import { AISession, ContentItem, Deployment, KnowledgeNote, Project, Prompt, Task } from "@/lib/types";
 
 export const projects: Project[] = [
   {
@@ -56,33 +56,9 @@ export const projects: Project[] = [
 ];
 
 export const prompts: Prompt[] = [
-  {
-    title: "Codex Phase Builder",
-    category: "coding",
-    recommendedTool: "codex",
-    recommendedModel: "gpt-5.5",
-    tags: ["phase", "implementation", "build"],
-    rating: 5,
-    project: "BuildOS",
-  },
-  {
-    title: "Claude Architecture Review",
-    category: "architecture",
-    recommendedTool: "claude",
-    recommendedModel: "claude-opus",
-    tags: ["review", "risk", "decisions"],
-    rating: 4,
-    project: "BuildOS",
-  },
-  {
-    title: "Carbon UI Page Builder",
-    category: "coding",
-    recommendedTool: "codex",
-    recommendedModel: "gpt-5.5",
-    tags: ["carbon", "nextjs", "layout"],
-    rating: 5,
-    project: "Cascade UI",
-  },
+  { title: "Codex Phase Builder", category: "coding", recommendedTool: "codex", recommendedModel: "gpt-5.5", tags: ["phase", "implementation", "build"], rating: 5, project: "BuildOS" },
+  { title: "Claude Architecture Review", category: "architecture", recommendedTool: "claude", recommendedModel: "claude-opus", tags: ["review", "risk", "decisions"], rating: 4, project: "BuildOS" },
+  { title: "Carbon UI Page Builder", category: "coding", recommendedTool: "codex", recommendedModel: "gpt-5.5", tags: ["carbon", "nextjs", "layout"], rating: 5, project: "Cascade UI" },
 ];
 
 export const contentItems: ContentItem[] = [
@@ -111,4 +87,71 @@ export const knowledgeNotes: KnowledgeNote[] = [
   { text: "The first valuable AI feature is project context generation.", project: "BuildOS", status: "planned" },
   { text: "The UI must follow ai-tools-dir and Carbon.", status: "active" },
   { text: "SQLite is enough for the first version.", status: "planned" },
+];
+
+export const deployments: Deployment[] = [
+  {
+    id: "dep-1",
+    project: "BuildOS",
+    environment: "production",
+    serviceName: "BuildOS Frontend",
+    serviceType: "frontend",
+    dockerComposeProject: "buildos",
+    dockerServiceName: "frontend",
+    containerName: "buildos-frontend-phase3",
+    internalHost: "frontend",
+    internalPort: 3000,
+    internalUrl: "http://frontend:3000",
+    publicDomain: "buildos.example.com",
+    publicUrl: "https://buildos.example.com",
+    cloudflareTunnelName: "homelab-main",
+    cloudflareRouteHostname: "buildos.example.com",
+    cloudflareAccessEnabled: true,
+    healthCheckUrl: "https://buildos.example.com",
+    status: "active",
+    notes: "Primary UI route via Cloudflare Tunnel.",
+  },
+  {
+    id: "dep-2",
+    project: "BuildOS",
+    environment: "production",
+    serviceName: "BuildOS Backend",
+    serviceType: "backend",
+    dockerComposeProject: "buildos",
+    dockerServiceName: "backend",
+    containerName: "buildos-backend-phase2",
+    internalHost: "backend",
+    internalPort: 8000,
+    internalUrl: "http://backend:8000",
+    publicDomain: "buildos-api.example.com",
+    publicUrl: "https://buildos-api.example.com",
+    cloudflareTunnelName: "homelab-main",
+    cloudflareRouteHostname: "buildos-api.example.com",
+    cloudflareAccessEnabled: true,
+    healthCheckUrl: "https://buildos-api.example.com/health",
+    status: "active",
+    notes: "API route behind tunnel + Access.",
+  },
+  {
+    id: "dep-3",
+    project: "KnowMy Homelab",
+    environment: "local",
+    serviceName: "Obsidian Vault SMB",
+    serviceType: "other",
+    dockerComposeProject: "homelab",
+    dockerServiceName: "smb",
+    containerName: "samba-obsidian",
+    internalHost: "smb",
+    internalPort: null,
+    internalUrl: "smb://homelab.local/obsidian-vault",
+    publicDomain: "",
+    publicUrl: "",
+    cloudflareTunnelName: "",
+    cloudflareRouteHostname: "",
+    cloudflareAccessEnabled: false,
+    healthCheckUrl: "",
+    status: "planned",
+    notes: "Not exposed publicly. Access through SMB/Tailscale only.",
+    internalPath: "/srv/obsidian-vault",
+  },
 ];

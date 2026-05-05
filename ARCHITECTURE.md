@@ -1,5 +1,3 @@
-# ARCHITECTURE.md
-
 ## System Architecture
 
 ```txt
@@ -12,6 +10,22 @@ FastAPI Backend
 SQLite Database
   ↓
 LiteLLM AI Gateway later
+```
+
+## Internet Routing (Planned)
+
+```txt
+Internet
+  ↓
+Cloudflare DNS
+  ↓
+Cloudflare Tunnel
+  ↓
+cloudflared container
+  ↓
+Docker network
+  ↓
+BuildOS frontend/backend services
 ```
 
 ## Frontend
@@ -87,44 +101,25 @@ Project
   → AI Sessions
   → Tasks
   → Knowledge Notes
+  → Deployments
 ```
 
-## Main Data Flow: Project Context Generator
+Routing mapping model:
 
 ```txt
-User opens Project Detail
-  ↓
-Clicks Generate Context
-  ↓
-Frontend sends project data to FastAPI
-  ↓
-FastAPI creates structured AI prompt
-  ↓
-FastAPI calls LiteLLM
-  ↓
-Generated markdown files return
-  ↓
-User reviews/copies/exports/saves
+Project → ContainerMapping → Docker live data → Deployment → Cloudflare route
 ```
 
-## Main Data Flow: Prompt Library
+## Main Data Flow: Deployments
 
 ```txt
-User creates reusable prompt
+User opens Deployments
   ↓
-Prompt is attached to optional project
+BuildOS shows internal host/port/url and public domain/url metadata
   ↓
-Prompt can be copied, improved, reused
-```
-
-## Main Data Flow: AI Session
-
-```txt
-User runs useful AI workflow
+User links deployment records to project and container metadata
   ↓
-Output is saved as AI Session
-  ↓
-AI Session can be searched and attached to project
+BuildOS warns for public exposure without Access/Tailscale
 ```
 
 ## Security Notes

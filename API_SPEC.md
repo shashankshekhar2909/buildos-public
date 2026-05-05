@@ -1,5 +1,3 @@
-# API_SPEC.md
-
 ## Backend
 
 Use FastAPI.
@@ -71,17 +69,6 @@ PATCH  /api/projects/{id}
 DELETE /api/projects/{id}
 ```
 
-Query params:
-
-```txt
-search
-status
-category
-priority
-page
-page_size
-```
-
 ## Prompts
 
 ```txt
@@ -92,17 +79,6 @@ PATCH  /api/prompts/{id}
 DELETE /api/prompts/{id}
 ```
 
-Query params:
-
-```txt
-search
-category
-recommended_tool
-project_id
-page
-page_size
-```
-
 ## Content
 
 ```txt
@@ -111,18 +87,6 @@ POST   /api/content
 GET    /api/content/{id}
 PATCH  /api/content/{id}
 DELETE /api/content/{id}
-```
-
-Query params:
-
-```txt
-search
-platform
-content_type
-status
-project_id
-page
-page_size
 ```
 
 ## AI Sessions
@@ -163,54 +127,30 @@ GET   /api/settings/{key}
 PATCH /api/settings/{key}
 ```
 
-## AI: Project Context Generator
+## Deployments (V1.5 Planning)
 
-First AI endpoint to build:
+```txt
+GET    /api/deployments
+POST   /api/deployments
+GET    /api/deployments/{id}
+PATCH  /api/deployments/{id}
+DELETE /api/deployments/{id}
+```
+
+Behavior notes:
+
+- V1 registry only (metadata management)
+- No Cloudflare API calls
+- No DNS automation
+- No secret/token exposure in frontend
+
+## AI: Project Context Generator
 
 ```txt
 POST /api/ai/generate-project-context
 ```
 
-Request:
-
-```json
-{
-  "project_id": "string",
-  "target_agent": "codex",
-  "desired_files": [
-    "AGENTS.md",
-    "CLAUDE.md",
-    "CODEX.md",
-    "PLAN.md",
-    "ARCHITECTURE.md",
-    "UI_SPEC.md",
-    "API_SPEC.md",
-    "DATA_MODEL.md"
-  ],
-  "extra_context": "optional text"
-}
-```
-
-Response:
-
-```json
-{
-  "success": true,
-  "data": {
-    "files": [
-      {
-        "filename": "AGENTS.md",
-        "content": "markdown content"
-      }
-    ]
-  },
-  "message": "Context files generated"
-}
-```
-
 ## Later AI Endpoints
-
-Build later:
 
 ```txt
 POST /api/ai/generate-content
