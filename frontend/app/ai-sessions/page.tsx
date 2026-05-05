@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Tag } from "@carbon/react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchToolbar } from "@/components/shared/search-toolbar";
@@ -22,12 +22,30 @@ function StarRating({ value }: { value: unknown }) {
 export default function AISessionsPage() {
   const [aiSessions, setAiSessions] = useState<ApiItem[]>(mockSessions as unknown as ApiItem[]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [toolFilter, setToolFilter] = useState("all");
+  const [moduleFilter, setModuleFilter] = useState("all");
 
   useEffect(() => {
     api.aiSessions().then(setAiSessions).catch(() => undefined);
   }, []);
 
-  const rows = aiSessions.map((item, i) => {
+  const filtered = useMemo(() => {
+    const term = searchQ.trim().toLowerCase();
+    return aiSessions.filter((item) => {
+      const matchSearch =
+        !term ||
+        String(item.title ?? "").toLowerCase().includes(term) ||
+        String(item.project ?? "").toLowerCase().includes(term);
+      const tool = String(item.tool ?? "").toLowerCase();
+      const matchTool = toolFilter === "all" || tool === toolFilter.toLowerCase();
+      const srcModule = String(item.source_module ?? item.sourceModule ?? "").toLowerCase();
+      const matchModule = moduleFilter === "all" || srcModule === moduleFilter.toLowerCase();
+      return matchSearch && matchTool && matchModule;
+    });
+  }, [aiSessions, searchQ, toolFilter, moduleFilter]);
+
+  const rows = filtered.map((item, i) => {
     const rawTags: string[] = Array.isArray(item.tags)
       ? (item.tags as string[])
       : String(item.tags ?? "")
@@ -68,8 +86,10 @@ export default function AISessionsPage() {
         toolbar={
           <SearchToolbar
             searchLabel="Search sessions"
-            filterA={{ id: "tool", label: "Tool", items: ["Codex", "Claude", "Aider"] }}
-            filterB={{ id: "module", label: "Source Module", items: ["Projects", "Architecture", "Prompts"] }}
+            searchValue={searchQ}
+            onSearch={setSearchQ}
+            filterA={{ id: "tool", label: "Tool", items: ["Codex", "Claude", "Aider"], value: toolFilter, onChange: setToolFilter }}
+            filterB={{ id: "module", label: "Source Module", items: ["Projects", "Architecture", "Prompts"], value: moduleFilter, onChange: setModuleFilter }}
           />
         }
         headers={[

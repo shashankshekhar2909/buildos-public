@@ -13,6 +13,8 @@ import {
   Book,
   Settings,
   DeploymentUnitData,
+  AppConnectivity,
+  UserMultiple,
 } from "@carbon/icons-react";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,11 +24,13 @@ const nav = [
   { href: "/", label: "Dashboard", icon: Dashboard },
   { href: "/projects", label: "Projects", icon: FolderDetails },
   { href: "/deployments", label: "Deployments", icon: DeploymentUnitData },
+  { href: "/containers", label: "Containers", icon: AppConnectivity },
   { href: "/prompts", label: "Prompts", icon: Query },
   { href: "/content", label: "Content Lab", icon: Document },
   { href: "/ai-sessions", label: "AI Sessions", icon: Bot },
   { href: "/tasks", label: "Tasks", icon: Checkmark },
   { href: "/knowledge", label: "Knowledge", icon: Book },
+  { href: "/users", label: "Users", icon: UserMultiple },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 

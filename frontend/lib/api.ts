@@ -1,8 +1,9 @@
 const configuredBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+const configuredPort = process.env.NEXT_PUBLIC_API_PORT || "8012";
 const dynamicBase =
   typeof window !== "undefined"
-    ? `${window.location.protocol}//${window.location.hostname}:8012`
-    : "http://localhost:8012";
+    ? `${window.location.protocol}//${window.location.hostname}:${configuredPort}`
+    : `http://localhost:${configuredPort}`;
 const configuredIsLocal =
   !!configuredBase &&
   (configuredBase.includes("localhost") || configuredBase.includes("127.0.0.1"));
@@ -151,4 +152,24 @@ export const api = {
   settings: () => fetchList<ApiItem>("/api/settings"),
   systemSnapshot: () => fetchOne<Record<string, unknown>>("/api/system/snapshot"),
   cloudflareRoutes: () => fetchOne<Record<string, unknown>>("/api/cloudflare/routes"),
+  containers: () => fetchOne<Record<string, unknown>>("/api/containers"),
+  containersSummary: () => fetchOne<Record<string, unknown>>("/api/containers/summary"),
+  attachContainerProject: async (containerId: string, project_id: number, notes?: string) => {
+    const res = await fetch(`${API_BASE}/api/containers/${encodeURIComponent(containerId)}/attach-project`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project_id, notes }),
+    });
+    if (!res.ok) throw new Error("Failed to attach container");
+    const json = (await res.json()) as OneResp<ApiItem>;
+    return json.data;
+  },
+  detachContainerProject: async (containerId: string) => {
+    const res = await fetch(`${API_BASE}/api/containers/${encodeURIComponent(containerId)}/detach-project`, {
+      method: "POST",
+    });
+    if (!res.ok) throw new Error("Failed to detach container");
+    const json = (await res.json()) as OneResp<Record<string, unknown>>;
+    return json.data;
+  },
 };

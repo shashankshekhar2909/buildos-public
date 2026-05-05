@@ -29,7 +29,7 @@ export function EntityTable({ headers, rows, title, description, toolbar }: Prop
               {toolbar}
             </TableToolbar>
           )}
-          <Table {...getTableProps()} size="md">
+          <Table {...getTableProps()} size="lg">
             <TableHead>
               <TableRow>
                 {tableHeaders.map((header) => {

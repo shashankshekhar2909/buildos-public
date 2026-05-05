@@ -57,6 +57,15 @@ export interface KnowledgeNote {
   status: "active" | "planned";
 }
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "viewer";
+  status: "active" | "invited";
+  createdAt: string;
+}
+
 export interface Deployment {
   id: string;
   project: string;

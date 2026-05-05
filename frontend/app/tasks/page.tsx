@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@carbon/react";
 import { Checkmark } from "@carbon/icons-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -14,10 +14,26 @@ import { tasks as mockTasks } from "@/lib/mock-data";
 export default function TasksPage() {
   const [tasks, setTasks] = useState<ApiItem[]>(mockTasks as unknown as ApiItem[]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
 
   useEffect(() => {
     api.tasks().then(setTasks).catch(() => undefined);
   }, []);
+
+  const filtered = useMemo(() => {
+    const term = searchQ.trim().toLowerCase();
+    return tasks.filter((t) => {
+      const matchSearch =
+        !term ||
+        String(t.title ?? "").toLowerCase().includes(term) ||
+        String(t.project ?? "").toLowerCase().includes(term);
+      const matchStatus = statusFilter === "all" || String(t.status ?? "") === statusFilter;
+      const matchPriority = priorityFilter === "all" || String(t.priority ?? "") === priorityFilter;
+      return matchSearch && matchStatus && matchPriority;
+    });
+  }, [tasks, searchQ, statusFilter, priorityFilter]);
 
   const markDone = (id: string) => {
     setTasks((prev) =>
@@ -28,7 +44,7 @@ export default function TasksPage() {
     // Optimistic only — backend call can be wired when API is ready
   };
 
-  const rows = tasks.map((task, i) => {
+  const rows = filtered.map((task, i) => {
     const id = `${task.id ?? i}`;
     const status = String(task.status ?? "open");
     const isDone = status === "done";
@@ -65,8 +81,10 @@ export default function TasksPage() {
         toolbar={
           <SearchToolbar
             searchLabel="Search tasks"
-            filterA={{ id: "status", label: "Status", items: ["open", "active", "in_progress", "blocked", "done"] }}
-            filterB={{ id: "priority", label: "Priority", items: ["critical", "high", "medium", "low"] }}
+            searchValue={searchQ}
+            onSearch={setSearchQ}
+            filterA={{ id: "status", label: "Status", items: ["open", "active", "in_progress", "blocked", "done"], value: statusFilter, onChange: setStatusFilter }}
+            filterB={{ id: "priority", label: "Priority", items: ["critical", "high", "medium", "low"], value: priorityFilter, onChange: setPriorityFilter }}
           />
         }
         headers={[

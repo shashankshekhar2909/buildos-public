@@ -49,7 +49,7 @@ export default function SettingsPage() {
           hideCloseButton
           title="Saved"
           subtitle="Settings persisted to localStorage."
-          style={{ marginBottom: "1rem" }}
+          className="notification--stacked"
         />
       )}
 

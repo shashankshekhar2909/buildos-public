@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Grid, Column, Tile, Search, Tag } from "@carbon/react";
+import { Grid, Column, Tile, Search, Select, SelectItem, Tag } from "@carbon/react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusTag } from "@/components/shared/tags";
@@ -12,6 +12,7 @@ import { knowledgeNotes as mockNotes } from "@/lib/mock-data";
 export default function KnowledgePage() {
   const [knowledgeNotes, setKnowledgeNotes] = useState<ApiItem[]>(mockNotes as unknown as ApiItem[]);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
@@ -20,13 +21,14 @@ export default function KnowledgePage() {
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
-    if (!term) return knowledgeNotes;
     return knowledgeNotes.filter((note) => {
       const text = String(note.content ?? note.text ?? "").toLowerCase();
       const project = String(note.project ?? "").toLowerCase();
-      return text.includes(term) || project.includes(term);
+      const matchSearch = !term || text.includes(term) || project.includes(term);
+      const matchStatus = statusFilter === "all" || String(note.status ?? "") === statusFilter;
+      return matchSearch && matchStatus;
     });
-  }, [knowledgeNotes, query]);
+  }, [knowledgeNotes, query, statusFilter]);
 
   return (
     <>
@@ -38,14 +40,29 @@ export default function KnowledgePage() {
       />
       {isCreateOpen && null}
 
-      <div style={{ marginBottom: "1.5rem", maxWidth: "32rem" }}>
-        <Search
-          id="knowledge-search"
-          labelText="Search notes"
-          placeholder="Filter by text or project..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+      <div className="filter-bar">
+        <div className="filter-bar__search">
+          <Search
+            id="knowledge-search"
+            labelText="Search notes"
+            placeholder="Filter by text or project..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <div className="filter-bar__select">
+          <Select
+            id="knowledge-status"
+            labelText="Status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <SelectItem value="all" text="All statuses" />
+            <SelectItem value="active" text="active" />
+            <SelectItem value="planned" text="planned" />
+            <SelectItem value="archived" text="archived" />
+          </Select>
+        </div>
       </div>
 
       {filtered.length === 0 ? (

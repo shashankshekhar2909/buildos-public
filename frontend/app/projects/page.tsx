@@ -64,6 +64,9 @@ export default function ProjectsPage() {
   const [selectedNames, setSelectedNames] = useState<string[]>([]);
   const [finderRoot, setFinderRoot] = useState("");
   const [finderMessage, setFinderMessage] = useState("");
+  const [searchQ, setSearchQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
 
   const refreshProjects = () => api.projects().then(setProjects).catch(() => undefined);
 
@@ -100,7 +103,21 @@ export default function ProjectsPage() {
     [files]
   );
 
-  const rows = projects.map((project, i) => ({
+  const filteredProjects = useMemo(() => {
+    const term = searchQ.trim().toLowerCase();
+    return projects.filter((p) => {
+      const matchSearch =
+        !term ||
+        String(p.name ?? "").toLowerCase().includes(term) ||
+        String(p.category ?? "").toLowerCase().includes(term) ||
+        String(p.goal ?? "").toLowerCase().includes(term);
+      const matchStatus = statusFilter === "all" || String(p.status ?? "") === statusFilter;
+      const matchPriority = priorityFilter === "all" || String(p.priority ?? "") === priorityFilter;
+      return matchSearch && matchStatus && matchPriority;
+    });
+  }, [projects, searchQ, statusFilter, priorityFilter]);
+
+  const rows = filteredProjects.map((project, i) => ({
     id: `${project.id ?? i}`,
     name: <Link href={`/projects/${project.slug}`}>{project.name}</Link>,
     category: project.category,
@@ -172,7 +189,7 @@ export default function ProjectsPage() {
         onAction={() => setIsCreateOpen(true)}
       />
 
-      <div style={{ marginBottom: "1rem", display: "flex", justifyContent: "flex-end" }}>
+      <div style={{ marginBottom: "var(--space-md)", display: "flex", justifyContent: "flex-end" }}>
         <Button kind="secondary" onClick={() => { void openFinder(); }}>Find Existing Projects</Button>
       </div>
 
@@ -181,8 +198,10 @@ export default function ProjectsPage() {
         toolbar={
           <SearchToolbar
             searchLabel="Search projects"
-            filterA={{ id: "status", label: "Status", items: ["active", "paused", "planned"] }}
-            filterB={{ id: "priority", label: "Priority", items: ["critical", "high", "medium", "low"] }}
+            searchValue={searchQ}
+            onSearch={setSearchQ}
+            filterA={{ id: "status", label: "Status", items: ["active", "paused", "planned"], value: statusFilter, onChange: setStatusFilter }}
+            filterB={{ id: "priority", label: "Priority", items: ["critical", "high", "medium", "low"], value: priorityFilter, onChange: setPriorityFilter }}
           />
         }
         headers={[
@@ -206,7 +225,7 @@ export default function ProjectsPage() {
         onRequestClose={() => setIsCreateOpen(false)}
         onRequestSubmit={() => { void onCreateProject(); }}
       >
-        <div style={{ display: "grid", gap: "0.75rem" }}>
+        <div style={{ display: "grid", gap: "var(--space-sm)" }}>
           <TextInput
             id="project-name"
             labelText="Name"
@@ -315,7 +334,7 @@ export default function ProjectsPage() {
             const checked = selectedNames.includes(name);
             const disabled = Boolean(item.already_imported);
             return (
-              <div key={`${name}-${idx}`} style={{ border: "1px solid var(--cds-border-subtle-01)", padding: "0.5rem" }}>
+              <div key={`${name}-${idx}`} style={{ border: "1px solid var(--cds-border-subtle-01)", padding: "var(--space-xs)" }}>
                 <Checkbox
                   id={`finder-${idx}`}
                   labelText={`${name} (${String(item.slug ?? "")})`}

@@ -1,4 +1,4 @@
-import { AISession, ContentItem, Deployment, KnowledgeNote, Project, Prompt, Task } from "@/lib/types";
+import { AISession, ContentItem, Deployment, KnowledgeNote, Project, Prompt, Task, User } from "@/lib/types";
 
 export const projects: Project[] = [
   {
@@ -18,7 +18,7 @@ export const projects: Project[] = [
     status: "active",
     priority: "high",
     goal: "Curated AI tools and workflow platform for builders.",
-    publicUrl: "https://ai.buildwithshashank.com",
+    publicUrl: "https://ai.example.com",
     techStack: ["Next.js", "SQLite", "Docker"],
     updatedDate: "2026-05-02",
   },
@@ -29,7 +29,7 @@ export const projects: Project[] = [
     status: "active",
     priority: "high",
     goal: "Public-safe homelab learning and architecture platform.",
-    publicUrl: "https://homelab.buildwithshashank.com",
+    publicUrl: "https://homelab.example.com",
     techStack: ["Proxmox", "Docker", "LiteLLM", "Cloudflare", "Next.js"],
     updatedDate: "2026-05-01",
   },
@@ -87,6 +87,16 @@ export const knowledgeNotes: KnowledgeNote[] = [
   { text: "The first valuable AI feature is project context generation.", project: "BuildOS", status: "planned" },
   { text: "The UI must follow ai-tools-dir and Carbon.", status: "active" },
   { text: "SQLite is enough for the first version.", status: "planned" },
+];
+
+export const users: User[] = [
+  { id: "usr-1", name: "BuildOS Admin", email: "admin@example.com", role: "admin", status: "active", createdAt: "2026-04-01" },
+  { id: "usr-2", name: "Priya Mehta", email: "priya@example.com", role: "admin", status: "active", createdAt: "2026-04-05" },
+  { id: "usr-3", name: "Alex Rivera", email: "alex@example.com", role: "viewer", status: "active", createdAt: "2026-04-10" },
+  { id: "usr-4", name: "Jordan Kim", email: "jordan@example.com", role: "viewer", status: "invited", createdAt: "2026-04-15" },
+  { id: "usr-5", name: "Sam Okafor", email: "sam@example.com", role: "viewer", status: "active", createdAt: "2026-04-20" },
+  { id: "usr-6", name: "Taylor Nguyen", email: "taylor@example.com", role: "viewer", status: "invited", createdAt: "2026-04-28" },
+  { id: "usr-7", name: "Dana Patel", email: "dana@example.com", role: "admin", status: "active", createdAt: "2026-05-01" },
 ];
 
 export const deployments: Deployment[] = [

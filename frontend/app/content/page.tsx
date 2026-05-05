@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Tag } from "@carbon/react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchToolbar } from "@/components/shared/search-toolbar";
@@ -18,12 +18,28 @@ function truncate(text: string, maxLen = 60) {
 export default function ContentPage() {
   const [contentItems, setContentItems] = useState<ApiItem[]>(mockContent as unknown as ApiItem[]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [platformFilter, setPlatformFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
     api.content().then(setContentItems).catch(() => undefined);
   }, []);
 
-  const rows = contentItems.map((item, i) => {
+  const filtered = useMemo(() => {
+    const term = searchQ.trim().toLowerCase();
+    return contentItems.filter((item) => {
+      const matchSearch =
+        !term ||
+        String(item.title ?? "").toLowerCase().includes(term) ||
+        String(item.hook ?? "").toLowerCase().includes(term);
+      const matchPlatform = platformFilter === "all" || String(item.platform ?? "") === platformFilter;
+      const matchStatus = statusFilter === "all" || String(item.status ?? "") === statusFilter;
+      return matchSearch && matchPlatform && matchStatus;
+    });
+  }, [contentItems, searchQ, platformFilter, statusFilter]);
+
+  const rows = filtered.map((item, i) => {
     const platform = String(item.platform ?? "");
     const contentType = String(item.content_type ?? item.contentType ?? "");
     return {
@@ -55,8 +71,10 @@ export default function ContentPage() {
         toolbar={
           <SearchToolbar
             searchLabel="Search content"
-            filterA={{ id: "platform", label: "Platform", items: ["LinkedIn", "YouTube", "Blog"] }}
-            filterB={{ id: "status", label: "Status", items: ["idea", "draft", "review", "ready", "published"] }}
+            searchValue={searchQ}
+            onSearch={setSearchQ}
+            filterA={{ id: "platform", label: "Platform", items: ["LinkedIn", "YouTube", "Blog"], value: platformFilter, onChange: setPlatformFilter }}
+            filterB={{ id: "status", label: "Status", items: ["idea", "draft", "review", "ready", "published"], value: statusFilter, onChange: setStatusFilter }}
           />
         }
         headers={[

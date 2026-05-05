@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@carbon/react";
 import { Copy } from "@carbon/icons-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -23,12 +23,29 @@ function StarRating({ value }: { value: unknown }) {
 export default function PromptsPage() {
   const [prompts, setPrompts] = useState<ApiItem[]>(mockPrompts as unknown as ApiItem[]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [toolFilter, setToolFilter] = useState("all");
 
   useEffect(() => {
     api.prompts().then(setPrompts).catch(() => undefined);
   }, []);
 
-  const rows = prompts.map((p, i) => ({
+  const filtered = useMemo(() => {
+    const term = searchQ.trim().toLowerCase();
+    return prompts.filter((p) => {
+      const matchSearch =
+        !term ||
+        String(p.title ?? "").toLowerCase().includes(term) ||
+        String(p.category ?? "").toLowerCase().includes(term);
+      const matchCategory = categoryFilter === "all" || String(p.category ?? "") === categoryFilter;
+      const tool = String(p.recommended_tool ?? p.recommendedTool ?? "").toLowerCase();
+      const matchTool = toolFilter === "all" || tool === toolFilter.toLowerCase();
+      return matchSearch && matchCategory && matchTool;
+    });
+  }, [prompts, searchQ, categoryFilter, toolFilter]);
+
+  const rows = filtered.map((p, i) => ({
     id: `${p.id ?? i}`,
     title: p.title,
     category: p.category,
@@ -63,8 +80,10 @@ export default function PromptsPage() {
         toolbar={
           <SearchToolbar
             searchLabel="Search prompts"
-            filterA={{ id: "category", label: "Category", items: ["coding", "architecture"] }}
-            filterB={{ id: "tool", label: "Tool", items: ["Codex", "Claude", "Aider"] }}
+            searchValue={searchQ}
+            onSearch={setSearchQ}
+            filterA={{ id: "category", label: "Category", items: ["coding", "architecture"], value: categoryFilter, onChange: setCategoryFilter }}
+            filterB={{ id: "tool", label: "Tool", items: ["codex", "claude", "aider"], value: toolFilter, onChange: setToolFilter }}
           />
         }
         headers={[

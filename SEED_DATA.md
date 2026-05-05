@@ -23,7 +23,7 @@ category: portfolio
 status: active
 priority: high
 goal: Curated AI tools and workflow platform for builders.
-public_url: https://ai.buildwithshashank.com
+public_url: https://ai.example.com
 tech_stack: Next.js, SQLite, Docker
 ```
 
@@ -36,7 +36,7 @@ category: homelab
 status: active
 priority: high
 goal: Public-safe homelab learning and architecture platform.
-public_url: https://homelab.buildwithshashank.com
+public_url: https://homelab.example.com
 tech_stack: Proxmox, Docker, LiteLLM, Cloudflare, Next.js
 ```
 

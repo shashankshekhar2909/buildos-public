@@ -296,7 +296,7 @@ export default function DeploymentsPage() {
   );
 
   const formFields = (
-    <div style={{ display: "grid", gap: "0.75rem" }}>
+    <div style={{ display: "grid", gap: "var(--space-sm)" }}>
       <Select
         id="project_id"
         labelText="Project"
@@ -413,7 +413,7 @@ export default function DeploymentsPage() {
         hideCloseButton
         title="Security"
         subtitle="Do not expose admin/internal services publicly without Cloudflare Access or Tailscale."
-        style={{ marginBottom: "1rem" }}
+        className="notification--stacked"
       />
       {cloudflareInfo.message ? (
         <InlineNotification
@@ -422,7 +422,7 @@ export default function DeploymentsPage() {
           hideCloseButton
           title="Cloudflare Routes"
           subtitle={`${cloudflareInfo.message} (${cloudflareInfo.count} discovered from ${cloudflareInfo.source || "configured path"})`}
-          style={{ marginBottom: "1rem" }}
+          className="notification--stacked"
         />
       ) : null}
 
@@ -433,25 +433,13 @@ export default function DeploymentsPage() {
           hideCloseButton
           title="Live API unavailable"
           subtitle={error}
-          style={{ marginBottom: "1rem" }}
+          className="notification--stacked"
         />
       ) : null}
 
       {/* Filter bar */}
-      <div
-        style={{
-          display: "flex",
-          gap: "1rem",
-          flexWrap: "wrap",
-          alignItems: "flex-end",
-          marginBottom: "1rem",
-          padding: "1rem",
-          background: "var(--surface-1)",
-          border: "1px solid var(--border-subtle)",
-          borderRadius: "8px",
-        }}
-      >
-        <div style={{ flex: "1 1 16rem" }}>
+      <div className="filter-bar">
+        <div className="filter-bar__search">
           <Search
             id="deployment-search"
             labelText="Search"
@@ -460,7 +448,7 @@ export default function DeploymentsPage() {
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
-        <div style={{ minWidth: "10rem" }}>
+        <div className="filter-bar__select">
           <Select
             id="deployment-status"
             labelText="Status"
@@ -474,7 +462,7 @@ export default function DeploymentsPage() {
             <SelectItem value="retired" text="retired" />
           </Select>
         </div>
-        <div style={{ minWidth: "10rem" }}>
+        <div className="filter-bar__select">
           <Select
             id="deployment-env"
             labelText="Environment"
@@ -487,7 +475,7 @@ export default function DeploymentsPage() {
             <SelectItem value="production" text="production" />
           </Select>
         </div>
-        <div style={{ minWidth: "10rem" }}>
+        <div className="filter-bar__select">
           <Select
             id="deployment-project"
             labelText="Project"

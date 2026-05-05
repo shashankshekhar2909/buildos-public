@@ -18,7 +18,7 @@ Last updated: 2026-05-05
 - [x] Deployments CRUD UI (add/edit/delete) wired to backend
 
 ## Open Items
-- [x] Project Finder: discover and import preexisting folders from `/home/shashank/app/projects`
+- [x] Project Finder: discover and import preexisting folders from configured project roots
 - [x] Add auth/user module and enforce login across app routes (basic session gate)
 - [ ] Move backend to requested `8011` if existing service is reassigned/stopped
 - [ ] Add persisted Docker volume for backend DB

@@ -1,102 +1,89 @@
 # BuildOS
 
-BuildOS is a private AI-native work and content operating dashboard.
+BuildOS is a private AI-native operating dashboard for projects, prompts, content, AI sessions, tasks, knowledge, deployments, and live Docker/container mapping.
 
-It helps manage:
+## Portable Run (Any Machine)
 
-- Projects
-- Prompts
-- Content pipeline
-- AI sessions
-- Tasks
-- Knowledge notes
-- Project context generation for Codex, Claude, and Aider
+### Prerequisites
 
-## Core Goal
+- Docker + Docker Compose plugin
 
-BuildOS should help Shashank stop losing useful AI work across chats, markdown files, Codex sessions, Claude conversations, homelab notes, and project folders.
+### Quick Start
 
-The first version should be practical, small, and usable within 7–10 days.
-
-## Stack
-
-Frontend:
-
-- Next.js
-- TypeScript
-- Carbon Design System
-- Carbon-style UI reference from existing folder: `ai-tools-dir`
-- Existing UI patterns should be reused where possible
-
-Backend:
-
-- Python
-- FastAPI
-- SQLite for V1
-- SQLModel or SQLAlchemy
-- Pydantic
-- LiteLLM integration later
-
-Deployment:
-
-- Docker Compose
-- Proxmox LXC/VM
-- LAN-first
-- Cloudflare Tunnel or Tailscale later
-
-## Important UI Requirement
-
-There is already an app/folder named:
-
-```txt
-ai-tools-dir
+```bash
+git clone git@github.com:shashankshekhar2909/buildos.git
+cd buildos
+cp .env.example .env
+./scripts/bootstrap.sh
 ```
 
-Use it as the UI reference.
+Open:
 
-Do not invent a completely new design.
+- Frontend: `http://localhost:4211`
+- Backend: `http://localhost:8012`
+- API Docs: `http://localhost:8012/docs`
 
-Borrow:
+Default login:
 
-- Layout style
-- Carbon components
-- Spacing style
-- Navigation pattern
-- Card patterns
-- Table/list style
-- Typography direction
-- Empty-state style
-- Overall visual feel
+- Username: `admin`
+- Password: `change-me`
 
-BuildOS should feel like the next internal product in the same ecosystem.
+Change these in `.env`:
 
-## V1 Scope
+- `DEFAULT_ADMIN_USERNAME`
+- `DEFAULT_ADMIN_EMAIL`
+- `DEFAULT_ADMIN_PASSWORD`
 
-Build only:
+## Enable Live Docker Visibility (Optional)
 
-1. Dashboard
-2. Projects
-3. Prompt Library
-4. Content Lab
-5. AI Sessions
-6. Tasks
-7. Knowledge Notes
-8. Settings
+If you want BuildOS to read host Docker containers:
 
-## V1 AI Priority
-
-The first useful AI feature should be:
-
-```txt
-Generate project context files for Codex / Claude / Aider
+```bash
+docker compose -f docker-compose.yml -f docker-compose.docker.yml up -d --build
 ```
 
-This is more important than content generation because it directly improves project execution.
+This mounts Docker socket as read-only:
 
-## Local URLs
+- `/var/run/docker.sock:/var/run/docker.sock:ro`
 
-```txt
-Frontend: http://localhost:3000
-Backend:  http://localhost:8000
-API Docs: http://localhost:8000/docs
+If not mounted, Docker pages still load but show a safe "Docker access not configured" state.
+
+## LAN Access
+
+Set host ports in `.env`:
+
+- `FRONTEND_PORT=4211`
+- `BACKEND_PORT=8012`
+
+Then access from LAN using your host IP:
+
+- `http://<your-host-ip>:4211`
+
+## Key Environment Variables
+
+- `PROJECTS_ROOT` (default `/app/projects`)
+- `PROJECTS_DISCOVERY_ROOTS` (comma-separated roots for finder/import)
+- `DATABASE_URL` (default sqlite in `/app/data/buildos.db`)
+- `SEED_PROFILE` (`generic` by default)
+- `NEXT_PUBLIC_API_BASE_URL` (optional explicit frontend API base)
+- `NEXT_PUBLIC_API_PORT` (default `8012`, used for dynamic hostname mode)
+
+## Manual Compose Commands
+
+Without Docker socket mode:
+
+```bash
+docker compose up -d --build
+```
+
+With Docker socket mode:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.docker.yml up -d --build
+```
+
+Stop:
+
+```bash
+docker compose down
 ```

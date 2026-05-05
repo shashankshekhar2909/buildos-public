@@ -1,0 +1,37 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: ${COMPOSE_PROJECT_NAME:-buildos}-backend
+    ports:
+      - "${BACKEND_PORT:-8012}:8000"
+    environment:
+      - BUILDOS_DATA_DIR=${BUILDOS_DATA_DIR:-/app/data}
+      - PROJECTS_ROOT=${PROJECTS_ROOT:-/app/projects}
+      - PROJECTS_DISCOVERY_ROOTS=${PROJECTS_DISCOVERY_ROOTS:-/app/projects}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/buildos.db}
+      - DEFAULT_ADMIN_USERNAME=${DEFAULT_ADMIN_USERNAME:-admin}
+      - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-admin@local}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-change-me}
+      - SEED_PROFILE=${SEED_PROFILE:-generic}
+      - BUILDOS_GITHUB_URL=${BUILDOS_GITHUB_URL:-}
+    volumes:
+      - ./data:/app/data
+      - ./projects:/app/projects
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
+    container_name: ${COMPOSE_PROJECT_NAME:-buildos}-frontend
+    ports:
+      - "${FRONTEND_PORT:-4211}:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-}
+      - NEXT_PUBLIC_API_PORT=${NEXT_PUBLIC_API_PORT:-8012}
+      - BUILDOS_BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped

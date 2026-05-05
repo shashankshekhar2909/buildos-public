@@ -11,3 +11,9 @@ __pycache__/
 # misc
 .DS_Store
 .env
+# Runtime/local state
+data/*.db
+data/*.sqlite*
+frontend/.next/
+backend/app/__pycache__/
+backend/__pycache__/

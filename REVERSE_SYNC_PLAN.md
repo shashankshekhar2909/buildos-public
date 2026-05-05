@@ -11,8 +11,8 @@ Maintain a single, always-current operational context so every new change can be
 - Backend: FastAPI + SQLite (`backend/`)
 - Runtime ports:
   - UI: `4211`
-  - API: `8012` (8011 currently occupied)
-- Docker mode: local containers on shared network `buildos-net`
+  - API: `8012` (configurable via `.env`)
+- Docker mode: Docker Compose default network
 
 ## Active Modules
 - Dashboard
@@ -34,7 +34,7 @@ Maintain a single, always-current operational context so every new change can be
 - Project Deployments tab and Dashboard routing snapshot continue to use live deployment data with fallback handling.
 - New scope in progress: Project Finder for importing existing local project folders into BuildOS DB.
 - Completed:
-  - Auto project folder mapping on project create/update (`/home/shashank/app/projects/<slug>`)
+  - Auto project folder mapping on project create/update (`<PROJECTS_ROOT>/<slug>`)
   - Project file browser endpoint and UI
   - Project Finder endpoints/UI for discover + import preexisting folders
   - Backend container now runs with host volume mount for projects root

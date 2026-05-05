@@ -26,6 +26,8 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<ApiItem[]>(mockTasks as unknown as ApiItem[]);
   const [sessions, setSessions] = useState<ApiItem[]>(mockSessions as unknown as ApiItem[]);
   const [knowledge, setKnowledge] = useState<ApiItem[]>(mockNotes as unknown as ApiItem[]);
+  const [deploymentsCount, setDeploymentsCount] = useState(0);
+  const [containerSummary, setContainerSummary] = useState<Record<string, unknown> | null>(null);
   const [apiError, setApiError] = useState(false);
 
   useEffect(() => {
@@ -36,14 +38,18 @@ export default function DashboardPage() {
       api.tasks(),
       api.aiSessions(),
       api.knowledge(),
+      api.deployments(),
+      api.containersSummary().catch(() => null),
     ])
-      .then(([p, pr, c, t, s, k]) => {
+      .then(([p, pr, c, t, s, k, d, cs]) => {
         setProjects(p);
         setPrompts(pr);
         setContent(c);
         setTasks(t);
         setSessions(s);
         setKnowledge(k);
+        setDeploymentsCount(d.length);
+        setContainerSummary(cs);
         setApiError(false);
       })
       .catch(() => setApiError(true));
@@ -80,7 +86,7 @@ export default function DashboardPage() {
           hideCloseButton
           title="Backend unavailable"
           subtitle="Showing cached mock data. Start the API server to see live counts."
-          style={{ marginBottom: "1rem" }}
+          className="notification--stacked"
         />
       )}
 
@@ -92,6 +98,24 @@ export default function DashboardPage() {
               <MetricTile label={label} value={value} />
             </Column>
           ))}
+        </Grid>
+      </section>
+
+      <section className="section">
+        <h2 className="section-heading">Container Health Snapshot</h2>
+        <Grid className="dashboard-grid">
+          <Column sm={4} md={4} lg={4} className="column--stack">
+            <MetricTile label="Live Containers" value={Number(containerSummary?.total ?? 0)} />
+          </Column>
+          <Column sm={4} md={4} lg={4} className="column--stack">
+            <MetricTile label="Running" value={Number(containerSummary?.running ?? 0)} />
+          </Column>
+          <Column sm={4} md={4} lg={4} className="column--stack">
+            <MetricTile label="Unmapped" value={Number(containerSummary?.unmapped ?? 0)} />
+          </Column>
+          <Column sm={4} md={4} lg={4} className="column--stack">
+            <MetricTile label="Mapped Deployments" value={deploymentsCount} />
+          </Column>
         </Grid>
       </section>
 
@@ -124,7 +148,7 @@ export default function DashboardPage() {
           ]}
           rows={taskRows}
         />
-        <div style={{ marginTop: "0.75rem" }}>
+        <div style={{ marginTop: "var(--space-sm)" }}>
           <Link href="/tasks" style={{ fontSize: "0.875rem", color: "var(--cds-interactive)" }}>
             View all tasks →
           </Link>
