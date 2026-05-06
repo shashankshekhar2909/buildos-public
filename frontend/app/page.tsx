@@ -10,22 +10,14 @@ import { EntityTable } from "@/components/shared/entity-table";
 import { PriorityTag, StatusTag } from "@/components/shared/tags";
 import { api } from "@/lib/api";
 import type { ApiItem } from "@/lib/api";
-import {
-  aiSessions as mockSessions,
-  contentItems as mockContent,
-  knowledgeNotes as mockNotes,
-  projects as mockProjects,
-  prompts as mockPrompts,
-  tasks as mockTasks,
-} from "@/lib/mock-data";
 
 export default function DashboardPage() {
-  const [projects, setProjects] = useState<ApiItem[]>(mockProjects as unknown as ApiItem[]);
-  const [prompts, setPrompts] = useState<ApiItem[]>(mockPrompts as unknown as ApiItem[]);
-  const [content, setContent] = useState<ApiItem[]>(mockContent as unknown as ApiItem[]);
-  const [tasks, setTasks] = useState<ApiItem[]>(mockTasks as unknown as ApiItem[]);
-  const [sessions, setSessions] = useState<ApiItem[]>(mockSessions as unknown as ApiItem[]);
-  const [knowledge, setKnowledge] = useState<ApiItem[]>(mockNotes as unknown as ApiItem[]);
+  const [projects, setProjects] = useState<ApiItem[]>([]);
+  const [prompts, setPrompts] = useState<ApiItem[]>([]);
+  const [content, setContent] = useState<ApiItem[]>([]);
+  const [tasks, setTasks] = useState<ApiItem[]>([]);
+  const [sessions, setSessions] = useState<ApiItem[]>([]);
+  const [knowledge, setKnowledge] = useState<ApiItem[]>([]);
   const [deploymentsCount, setDeploymentsCount] = useState(0);
   const [containerSummary, setContainerSummary] = useState<Record<string, unknown> | null>(null);
   const [apiError, setApiError] = useState(false);
@@ -85,7 +77,7 @@ export default function DashboardPage() {
           lowContrast
           hideCloseButton
           title="Backend unavailable"
-          subtitle="Showing cached mock data. Start the API server to see live counts."
+          subtitle="Could not load live data from backend."
           className="notification--stacked"
         />
       )}

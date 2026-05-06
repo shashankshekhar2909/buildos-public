@@ -8,7 +8,6 @@ import { EntityTable } from "@/components/shared/entity-table";
 import { StatusTag } from "@/components/shared/tags";
 import { api } from "@/lib/api";
 import type { ApiItem } from "@/lib/api";
-import { contentItems as mockContent } from "@/lib/mock-data";
 
 function truncate(text: string, maxLen = 60) {
   if (!text) return "-";
@@ -16,7 +15,7 @@ function truncate(text: string, maxLen = 60) {
 }
 
 export default function ContentPage() {
-  const [contentItems, setContentItems] = useState<ApiItem[]>(mockContent as unknown as ApiItem[]);
+  const [contentItems, setContentItems] = useState<ApiItem[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [platformFilter, setPlatformFilter] = useState("all");

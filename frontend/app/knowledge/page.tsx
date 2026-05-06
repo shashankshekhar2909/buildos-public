@@ -7,10 +7,9 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { StatusTag } from "@/components/shared/tags";
 import { api } from "@/lib/api";
 import type { ApiItem } from "@/lib/api";
-import { knowledgeNotes as mockNotes } from "@/lib/mock-data";
 
 export default function KnowledgePage() {
-  const [knowledgeNotes, setKnowledgeNotes] = useState<ApiItem[]>(mockNotes as unknown as ApiItem[]);
+  const [knowledgeNotes, setKnowledgeNotes] = useState<ApiItem[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);

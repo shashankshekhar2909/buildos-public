@@ -7,7 +7,6 @@ import { SearchToolbar } from "@/components/shared/search-toolbar";
 import { EntityTable } from "@/components/shared/entity-table";
 import { api } from "@/lib/api";
 import type { ApiItem } from "@/lib/api";
-import { aiSessions as mockSessions } from "@/lib/mock-data";
 
 function StarRating({ value }: { value: unknown }) {
   const n = Number(value ?? 0);
@@ -20,7 +19,7 @@ function StarRating({ value }: { value: unknown }) {
 }
 
 export default function AISessionsPage() {
-  const [aiSessions, setAiSessions] = useState<ApiItem[]>(mockSessions as unknown as ApiItem[]);
+  const [aiSessions, setAiSessions] = useState<ApiItem[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [toolFilter, setToolFilter] = useState("all");

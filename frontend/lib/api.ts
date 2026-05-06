@@ -11,6 +11,22 @@ const API_BASE =
   configuredBase && configuredBase.trim().length > 0 && !configuredIsLocal
     ? configuredBase
     : dynamicBase;
+function readAccessToken(): string | null {
+  if (typeof document === "undefined") return null;
+  const part = document.cookie
+    .split(";")
+    .map((v) => v.trim())
+    .find((v) => v.startsWith("buildos_access_token="));
+  return part ? decodeURIComponent(part.slice("buildos_access_token=".length)) : null;
+}
+
+function authHeaders(base?: HeadersInit): HeadersInit {
+  const token = readAccessToken();
+  const headers: Record<string, string> = {};
+  if (base && typeof base === "object" && !Array.isArray(base)) Object.assign(headers, base as Record<string, string>);
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
 
 export type ApiItem = { [key: string]: string | number | boolean | null | undefined };
 
@@ -28,7 +44,7 @@ interface OneResp<T> {
 }
 
 async function fetchList<T>(path: string): Promise<T[]> {
-  const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
+  const res = await fetch(`${API_BASE}${path}`, { cache: "no-store", headers: authHeaders() });
   if (!res.ok) throw new Error(`API ${path} failed`);
   const json = (await res.json()) as ListResp<T>;
   return json.data;
@@ -44,7 +60,7 @@ function withQuery(path: string, query: Record<string, string | number | boolean
 }
 
 async function fetchOne<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
+  const res = await fetch(`${API_BASE}${path}`, { cache: "no-store", headers: authHeaders() });
   if (!res.ok) throw new Error(`API ${path} failed`);
   const json = (await res.json()) as OneResp<T>;
   return json.data;
@@ -56,7 +72,7 @@ export const api = {
   createProject: async (payload: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/api/projects`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error("Failed to create project");
@@ -65,13 +81,13 @@ export const api = {
   },
   projectFiles: async (projectId: string | number, path = ".") => {
     const p = encodeURIComponent(path);
-    const res = await fetch(`${API_BASE}/api/projects/${projectId}/files?path=${p}`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE}/api/projects/${projectId}/files?path=${p}`, { cache: "no-store", headers: authHeaders() });
     if (!res.ok) throw new Error("Failed to load project files");
     const json = (await res.json()) as OneResp<Record<string, unknown>>;
     return json.data;
   },
   discoverProjects: async () => {
-    const res = await fetch(`${API_BASE}/api/project-finder/discover`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE}/api/project-finder/discover`, { cache: "no-store", headers: authHeaders() });
     if (!res.ok) throw new Error("Failed to discover projects");
     const json = (await res.json()) as OneResp<Record<string, unknown>>;
     return json.data;
@@ -79,7 +95,7 @@ export const api = {
   importProjects: async (names: string[]) => {
     const res = await fetch(`${API_BASE}/api/project-finder/import`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ names }),
     });
     if (!res.ok) throw new Error("Failed to import projects");
@@ -102,7 +118,7 @@ export const api = {
   createUser: async (payload: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/api/users`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error("Failed to create user");
@@ -112,7 +128,7 @@ export const api = {
   updateUser: async (id: string | number, payload: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/api/users/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error("Failed to update user");
@@ -120,14 +136,14 @@ export const api = {
     return json.data;
   },
   deleteUser: async (id: string | number) => {
-    const res = await fetch(`${API_BASE}/api/users/${id}`, { method: "DELETE" });
+    const res = await fetch(`${API_BASE}/api/users/${id}`, { method: "DELETE", headers: authHeaders() });
     if (!res.ok) throw new Error("Failed to delete user");
     return res.json();
   },
   createDeployment: async (payload: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/api/deployments`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error("Failed to create deployment");
@@ -137,7 +153,7 @@ export const api = {
   updateDeployment: async (id: string | number, payload: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/api/deployments/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error("Failed to update deployment");
@@ -145,7 +161,7 @@ export const api = {
     return json.data;
   },
   deleteDeployment: async (id: string | number) => {
-    const res = await fetch(`${API_BASE}/api/deployments/${id}`, { method: "DELETE" });
+    const res = await fetch(`${API_BASE}/api/deployments/${id}`, { method: "DELETE", headers: authHeaders() });
     if (!res.ok) throw new Error("Failed to delete deployment");
     return res.json();
   },
@@ -157,7 +173,7 @@ export const api = {
   attachContainerProject: async (containerId: string, project_id: number, notes?: string) => {
     const res = await fetch(`${API_BASE}/api/containers/${encodeURIComponent(containerId)}/attach-project`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ project_id, notes }),
     });
     if (!res.ok) throw new Error("Failed to attach container");
@@ -167,6 +183,7 @@ export const api = {
   detachContainerProject: async (containerId: string) => {
     const res = await fetch(`${API_BASE}/api/containers/${encodeURIComponent(containerId)}/detach-project`, {
       method: "POST",
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error("Failed to detach container");
     const json = (await res.json()) as OneResp<Record<string, unknown>>;

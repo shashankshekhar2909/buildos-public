@@ -59,6 +59,11 @@ Default login:
 - Username: `admin`
 - Password: `change-me`
 
+Auth mode is switchable:
+
+- `AUTH_MODE=local` for local DB users + backend JWT
+- `AUTH_MODE=auth0` for Auth0 login + Auth0 JWT validation
+
 Change these in `.env`:
 
 - `DEFAULT_ADMIN_USERNAME`
@@ -108,6 +113,12 @@ Then access from LAN using your host IP:
 - `SEED_PROFILE` (`generic` by default)
 - `NEXT_PUBLIC_API_BASE_URL` (optional explicit frontend API base)
 - `NEXT_PUBLIC_API_PORT` (default `8012`, used for dynamic hostname mode)
+- `NEXT_PUBLIC_AUTH_MODE` (`local` or `auth0`)
+- `APP_BASE_URL` (frontend external URL, required for Auth0 callbacks)
+- `AUTH_ENABLED` (`true`/`false`)
+- `AUTH_MODE` (`local`/`auth0`)
+- `AUTH_JWT_SECRET` (local mode)
+- `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_AUDIENCE` (auth0 mode)
 
 ## Manual Compose Commands
 

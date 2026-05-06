@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, PasswordInput, TextInput, Tile, InlineNotification } from "@carbon/react";
+import { getAuthMode } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const authMode = getAuthMode();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -27,6 +29,8 @@ export default function LoginPage() {
       }
       router.replace("/");
       router.refresh();
+    } catch {
+      setError("Login request failed. Check backend/frontend connectivity and try again.");
     } finally {
       setLoading(false);
     }
@@ -40,17 +44,22 @@ export default function LoginPage() {
         {error ? (
           <InlineNotification kind="error" lowContrast hideCloseButton title="Login failed" subtitle={error} style={{ marginBottom: "0.75rem" }} />
         ) : null}
-        <form onSubmit={onSubmit}>
-          <div className="settings-input">
-            <TextInput id="login-username" labelText="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
-          </div>
-          <div className="settings-input">
-            <PasswordInput id="login-password" labelText="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-          <Button type="submit" disabled={loading}>{loading ? "Signing in..." : "Sign In"}</Button>
-        </form>
+        {authMode === "auth0" ? (
+          <Button as="a" href="/api/auth/login">
+            Continue with Auth0
+          </Button>
+        ) : (
+          <form onSubmit={onSubmit}>
+            <div className="settings-input">
+              <TextInput id="login-username" labelText="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
+            </div>
+            <div className="settings-input">
+              <PasswordInput id="login-password" labelText="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            <Button type="submit" disabled={loading}>{loading ? "Signing in..." : "Sign In"}</Button>
+          </form>
+        )}
       </Tile>
     </div>
   );
 }
-

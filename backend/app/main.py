@@ -1,4 +1,7 @@
 from datetime import datetime
+import base64
+import json
+import time
 
 import os
 import re
@@ -6,13 +9,16 @@ from pathlib import Path
 import platform
 import psutil
 import configparser
+from urllib.request import urlopen
 
 try:
     import docker
 except Exception:
     docker = None
+import jwt
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlmodel import Session, select
 
 from app.db import engine, get_session, init_db
@@ -57,6 +63,15 @@ DEFAULT_ADMIN_USERNAME = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
 DEFAULT_ADMIN_EMAIL = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@local")
 DEFAULT_ADMIN_PASSWORD = os.getenv("DEFAULT_ADMIN_PASSWORD", "change-me")
 AUTO_IMPORT_DISCOVERED_PROJECTS = os.getenv("AUTO_IMPORT_DISCOVERED_PROJECTS", "false").strip().lower() in {"1", "true", "yes", "on"}
+AUTH_MODE = os.getenv("AUTH_MODE", "local").strip().lower()
+AUTH_ENABLED = os.getenv("AUTH_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+AUTH_JWT_SECRET = os.getenv("AUTH_JWT_SECRET", "change-me-local-jwt-secret")
+AUTH_JWT_ALGORITHM = os.getenv("AUTH_JWT_ALGORITHM", "HS256")
+AUTH_TOKEN_TTL_SECONDS = int(os.getenv("AUTH_TOKEN_TTL_SECONDS", "43200"))
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "").strip()
+AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE", "").strip()
+AUTH0_ISSUER = os.getenv("AUTH0_ISSUER", f"https://{AUTH0_DOMAIN}/" if AUTH0_DOMAIN else "").strip()
+_auth0_jwks_cache = {"keys": None, "expires_at": 0}
 DISCOVERY_ROOTS = [
     Path(p.strip()).resolve()
     for p in os.getenv("PROJECTS_DISCOVERY_ROOTS", "").split(",")
@@ -75,6 +90,72 @@ AI_CONTEXT_FILES = [
     "FRONTEND_SPEC.md",
     "BACKEND_SPEC.md",
 ]
+
+PROTECTED_PATH_PREFIXES = ("/api/", "/api")
+UNPROTECTED_PATHS = {"/health", "/api/auth/token", "/api/auth/login"}
+
+
+def _encode_local_token(user: User) -> str:
+    now = int(time.time())
+    payload = {
+        "sub": str(user.id),
+        "username": user.username,
+        "email": user.email,
+        "role": user.role,
+        "auth_mode": "local",
+        "iat": now,
+        "exp": now + AUTH_TOKEN_TTL_SECONDS,
+    }
+    return jwt.encode(payload, AUTH_JWT_SECRET, algorithm=AUTH_JWT_ALGORITHM)
+
+
+def _decode_unverified_header(token: str) -> dict:
+    parts = token.split(".")
+    if len(parts) != 3:
+        raise HTTPException(status_code=401, detail="Invalid token format")
+    padded = parts[0] + "=" * (-len(parts[0]) % 4)
+    try:
+        return json.loads(base64.urlsafe_b64decode(padded.encode("utf-8")).decode("utf-8"))
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token header")
+
+
+def _get_auth0_jwks() -> dict:
+    now = int(time.time())
+    if _auth0_jwks_cache["keys"] is not None and now < _auth0_jwks_cache["expires_at"]:
+        return _auth0_jwks_cache["keys"]
+    if not AUTH0_DOMAIN:
+        raise HTTPException(status_code=500, detail="AUTH0_DOMAIN not configured")
+    with urlopen(f"https://{AUTH0_DOMAIN}/.well-known/jwks.json", timeout=5) as resp:
+        keys = json.loads(resp.read().decode("utf-8"))
+    _auth0_jwks_cache["keys"] = keys
+    _auth0_jwks_cache["expires_at"] = now + 300
+    return keys
+
+
+def _verify_auth0_token(token: str) -> dict:
+    header = _decode_unverified_header(token)
+    kid = header.get("kid")
+    if not kid:
+        raise HTTPException(status_code=401, detail="Missing kid in token")
+    jwks = _get_auth0_jwks()
+    key = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
+    if not key:
+        raise HTTPException(status_code=401, detail="Signing key not found")
+    public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
+    options = {"verify_aud": bool(AUTH0_AUDIENCE)}
+    return jwt.decode(
+        token,
+        key=public_key,
+        algorithms=["RS256"],
+        audience=AUTH0_AUDIENCE or None,
+        issuer=AUTH0_ISSUER or None,
+        options=options,
+    )
+
+
+def _verify_local_token(token: str) -> dict:
+    return jwt.decode(token, AUTH_JWT_SECRET, algorithms=[AUTH_JWT_ALGORITHM])
 
 
 def _ensure_project_folder(slug: str) -> str:
@@ -435,6 +516,31 @@ def _apply_updates(obj, payload):
     return obj
 
 
+@app.middleware("http")
+async def auth_middleware(request, call_next):
+    if not AUTH_ENABLED:
+        return await call_next(request)
+    if request.method == "OPTIONS":
+        return await call_next(request)
+    path = request.url.path
+    if path in UNPROTECTED_PATHS or not path.startswith(PROTECTED_PATH_PREFIXES):
+        return await call_next(request)
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return JSONResponse(status_code=401, content={"detail": "Missing bearer token"})
+    token = auth_header.split(" ", 1)[1].strip()
+    try:
+        claims = _verify_auth0_token(token) if AUTH_MODE == "auth0" else _verify_local_token(token)
+        request.state.auth_claims = claims
+    except jwt.ExpiredSignatureError:
+        return JSONResponse(status_code=401, content={"detail": "Token expired"})
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+    except Exception:
+        return JSONResponse(status_code=401, content={"detail": "Invalid token"})
+    return await call_next(request)
+
+
 def _register_item_routes(base_path: str, model_cls, create_schema, update_schema):
     @app.post(base_path)
     def create_item(payload: create_schema, session: Session = Depends(get_session)):
@@ -492,16 +598,19 @@ def list_projects(search: str | None = None, status: str | None = None, category
     return _list_response(items, len(session.exec(query).all()), page, page_size)
 
 
-@app.post("/api/auth/login")
-def auth_login(payload: dict, session: Session = Depends(get_session)):
+@app.post("/api/auth/token")
+def auth_token(payload: dict, session: Session = Depends(get_session)):
     username = str(payload.get("username", "")).strip()
     password = str(payload.get("password", ""))
     if not username or not password:
         raise HTTPException(status_code=400, detail="username and password are required")
+    if AUTH_MODE != "local":
+        raise HTTPException(status_code=400, detail="Local token login disabled when AUTH_MODE is auth0")
     user = session.exec(select(User).where(User.username == username)).first()
     if not user or not user.is_active or user.password != password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    return APIResponse(success=True, data=_sanitize_user(user), message="Authenticated")
+    token = _encode_local_token(user)
+    return APIResponse(success=True, data={"access_token": token, "token_type": "Bearer", "user": _sanitize_user(user)}, message="Authenticated")
 
 
 @app.get("/api/users")

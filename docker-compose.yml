@@ -15,6 +15,14 @@ services:
       - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-change-me}
       - SEED_PROFILE=${SEED_PROFILE:-generic}
       - BUILDOS_GITHUB_URL=${BUILDOS_GITHUB_URL:-}
+      - AUTH_ENABLED=${AUTH_ENABLED:-true}
+      - AUTH_MODE=${AUTH_MODE:-local}
+      - AUTH_JWT_SECRET=${AUTH_JWT_SECRET:-change-me-local-jwt-secret}
+      - AUTH_JWT_ALGORITHM=${AUTH_JWT_ALGORITHM:-HS256}
+      - AUTH_TOKEN_TTL_SECONDS=${AUTH_TOKEN_TTL_SECONDS:-43200}
+      - AUTH0_DOMAIN=${AUTH0_DOMAIN:-}
+      - AUTH0_AUDIENCE=${AUTH0_AUDIENCE:-}
+      - AUTH0_ISSUER=${AUTH0_ISSUER:-}
     volumes:
       - ./data:/app/data
       - ./projects:/app/projects
@@ -25,13 +33,21 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
+        NEXT_PUBLIC_AUTH_MODE: ${NEXT_PUBLIC_AUTH_MODE:-local}
     container_name: ${COMPOSE_PROJECT_NAME:-buildos}-frontend
     ports:
       - "${FRONTEND_PORT:-4211}:3000"
     environment:
       - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-}
       - NEXT_PUBLIC_API_PORT=${NEXT_PUBLIC_API_PORT:-8012}
+      - NEXT_PUBLIC_AUTH_MODE=${NEXT_PUBLIC_AUTH_MODE:-local}
       - BUILDOS_BACKEND_URL=http://backend:8000
+      - APP_BASE_URL=${APP_BASE_URL:-http://localhost:4211}
+      - AUTH0_DOMAIN=${AUTH0_DOMAIN:-}
+      - AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID:-}
+      - AUTH0_CLIENT_SECRET=${AUTH0_CLIENT_SECRET:-}
+      - AUTH0_AUDIENCE=${AUTH0_AUDIENCE:-}
+      - AUTH0_SCOPE=${AUTH0_SCOPE:-openid profile email}
     depends_on:
       - backend
     restart: unless-stopped

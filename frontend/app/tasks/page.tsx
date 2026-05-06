@@ -9,10 +9,9 @@ import { EntityTable } from "@/components/shared/entity-table";
 import { PriorityTag, StatusTag } from "@/components/shared/tags";
 import { api } from "@/lib/api";
 import type { ApiItem } from "@/lib/api";
-import { tasks as mockTasks } from "@/lib/mock-data";
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<ApiItem[]>(mockTasks as unknown as ApiItem[]);
+  const [tasks, setTasks] = useState<ApiItem[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");

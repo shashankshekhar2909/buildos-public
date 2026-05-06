@@ -21,7 +21,6 @@ import { EntityTable } from "@/components/shared/entity-table";
 import { PriorityTag, StatusTag } from "@/components/shared/tags";
 import { api } from "@/lib/api";
 import type { ApiItem } from "@/lib/api";
-import { projects as mockProjects } from "@/lib/mock-data";
 
 type ProjectForm = {
   name: string;
@@ -51,7 +50,7 @@ function slugify(value: string): string {
 }
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<ApiItem[]>(mockProjects as unknown as ApiItem[]);
+  const [projects, setProjects] = useState<ApiItem[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [projectForm, setProjectForm] = useState<ProjectForm>(emptyProject);
   const [isFilesOpen, setIsFilesOpen] = useState(false);

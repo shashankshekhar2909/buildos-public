@@ -8,7 +8,6 @@ import { SearchToolbar } from "@/components/shared/search-toolbar";
 import { EntityTable } from "@/components/shared/entity-table";
 import { api } from "@/lib/api";
 import type { ApiItem } from "@/lib/api";
-import { prompts as mockPrompts } from "@/lib/mock-data";
 
 function StarRating({ value }: { value: unknown }) {
   const n = Number(value ?? 0);
@@ -21,7 +20,7 @@ function StarRating({ value }: { value: unknown }) {
 }
 
 export default function PromptsPage() {
-  const [prompts, setPrompts] = useState<ApiItem[]>(mockPrompts as unknown as ApiItem[]);
+  const [prompts, setPrompts] = useState<ApiItem[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");

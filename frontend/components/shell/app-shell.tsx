@@ -10,7 +10,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isAuthPage = pathname === "/login";
 
   const onLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    const res = await fetch("/api/auth/logout", { method: "POST" });
+    const body = (await res.json()) as { logout_url?: string };
+    if (body.logout_url) {
+      window.location.href = body.logout_url;
+      return;
+    }
     router.replace("/login");
     router.refresh();
   };
