@@ -120,6 +120,25 @@ Then access from LAN using your host IP:
 - `AUTH_JWT_SECRET` (local mode)
 - `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_AUDIENCE` (auth0 mode)
 
+## Authentication Notes
+
+- Local/manual auth is token-based (`POST /api/auth/token`).
+- Users page supports active/inactive toggle and password change in local mode.
+- In Auth0 mode, password lifecycle is managed in Auth0.
+- `NEXT_PUBLIC_AUTH_MODE` should match backend `AUTH_MODE`.
+
+For LAN HTTP deployments, set:
+
+- `APP_BASE_URL=http://<your-host-ip>:4211`
+
+This ensures auth cookies are issued correctly for non-HTTPS local/LAN access.
+
+## Troubleshooting Login/CORS
+
+- If login seems to do nothing, clear cookies and log in again.
+- If APIs show CORS errors, ensure backend is running latest image with auth middleware that allows `OPTIONS` preflight.
+- If Users page shows API error, re-login to refresh `buildos_access_token` cookie.
+
 ## Manual Compose Commands
 
 ```bash
