@@ -20,9 +20,11 @@ export default function ContentPage() {
   const [searchQ, setSearchQ] = useState("");
   const [platformFilter, setPlatformFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.content().then(setContentItems).catch(() => undefined);
+    setLoading(true);
+    api.content().then(setContentItems).catch(() => undefined).finally(() => setLoading(false));
   }, []);
 
   const filtered = useMemo(() => {
@@ -41,10 +43,16 @@ export default function ContentPage() {
   const rows = filtered.map((item, i) => {
     const platform = String(item.platform ?? "");
     const contentType = String(item.content_type ?? item.contentType ?? "");
+    const titleStr = String(item.title ?? "-");
+    const hookStr = truncate(String(item.hook ?? ""));
     return {
       id: `${item.id ?? i}`,
-      title: String(item.title ?? "-"),
-      hook: truncate(String(item.hook ?? "")),
+      title: (
+        <span className="cell--truncate" title={titleStr}>{titleStr}</span>
+      ),
+      hook: hookStr !== "-" ? (
+        <span className="cell--truncate" title={String(item.hook ?? "")}>{hookStr}</span>
+      ) : "-",
       typePlatform: (
         <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
           {contentType && <Tag type="blue" size="sm">{contentType}</Tag>}
@@ -67,6 +75,7 @@ export default function ContentPage() {
       {isCreateOpen && null}
       <EntityTable
         title="Content"
+        loading={loading}
         toolbar={
           <SearchToolbar
             searchLabel="Search content"

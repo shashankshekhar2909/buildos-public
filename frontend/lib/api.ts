@@ -68,7 +68,7 @@ async function fetchOne<T>(path: string): Promise<T> {
 
 export const api = {
   baseUrl: API_BASE,
-  projects: () => fetchList<ApiItem>("/api/projects"),
+  projects: () => fetchList<ApiItem>(withQuery("/api/projects", { page: 1, page_size: 500 })),
   createProject: async (payload: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/api/projects`, {
       method: "POST",
@@ -99,6 +99,23 @@ export const api = {
       body: JSON.stringify({ names }),
     });
     if (!res.ok) throw new Error("Failed to import projects");
+    const json = (await res.json()) as OneResp<Record<string, unknown>>;
+    return json.data;
+  },
+  addProjectFinderRoot: async (path: string) => {
+    const res = await fetch(`${API_BASE}/api/project-finder/roots`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ path }),
+    });
+    if (!res.ok) {
+      try {
+        const err = (await res.json()) as { detail?: string };
+        throw new Error(err.detail || "Failed to add discovery root");
+      } catch {
+        throw new Error("Failed to add discovery root");
+      }
+    }
     const json = (await res.json()) as OneResp<Record<string, unknown>>;
     return json.data;
   },

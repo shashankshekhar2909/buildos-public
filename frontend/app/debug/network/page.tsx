@@ -11,9 +11,21 @@ type HealthState = {
   error: string;
   response: string;
 };
+type ReadinessState = {
+  loading: boolean;
+  ok: boolean;
+  error: string;
+  response: string;
+};
 
 export default function NetworkDebugPage() {
   const [health, setHealth] = useState<HealthState>({
+    loading: false,
+    ok: false,
+    error: "",
+    response: "",
+  });
+  const [readiness, setReadiness] = useState<ReadinessState>({
     loading: false,
     ok: false,
     error: "",
@@ -40,8 +52,32 @@ export default function NetworkDebugPage() {
     }
   };
 
+  const checkReadiness = async () => {
+    setReadiness({ loading: true, ok: false, error: "", response: "" });
+    try {
+      const token = document.cookie
+        .split(";")
+        .map((v) => v.trim())
+        .find((v) => v.startsWith("buildos_access_token="))
+        ?.split("=")[1];
+      const res = await fetch(`${api.baseUrl}/api/system/readiness`, {
+        cache: "no-store",
+        headers: token ? { Authorization: `Bearer ${decodeURIComponent(token)}` } : {},
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        setReadiness({ loading: false, ok: false, error: `HTTP ${res.status}`, response: text });
+        return;
+      }
+      setReadiness({ loading: false, ok: true, error: "", response: text });
+    } catch (error) {
+      setReadiness({ loading: false, ok: false, error: (error as Error).message, response: "" });
+    }
+  };
+
   useEffect(() => {
     void check();
+    void checkReadiness();
   }, []);
 
   return (
@@ -88,7 +124,23 @@ export default function NetworkDebugPage() {
 {health.response || "(no response yet)"}
         </pre>
       </Tile>
+      <Tile style={{ marginTop: "1rem" }}>
+        <div style={{ display: "flex", gap: "0.75rem", marginBottom: "0.75rem" }}>
+          <Button onClick={() => void checkReadiness()} disabled={readiness.loading}>
+            {readiness.loading ? "Checking..." : "Recheck Readiness"}
+          </Button>
+        </div>
+        {readiness.ok ? (
+          <InlineNotification kind="success" lowContrast hideCloseButton title="Readiness reachable" subtitle={`${api.baseUrl}/api/system/readiness responded.`} style={{ marginBottom: "0.75rem" }} />
+        ) : null}
+        {!readiness.ok && readiness.error ? (
+          <InlineNotification kind="error" lowContrast hideCloseButton title="Readiness check failed" subtitle={readiness.error} style={{ marginBottom: "0.75rem" }} />
+        ) : null}
+        <p><strong>Raw readiness response:</strong></p>
+        <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+{readiness.response || "(no response yet)"}
+        </pre>
+      </Tile>
     </>
   );
 }
-

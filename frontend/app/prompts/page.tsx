@@ -25,9 +25,11 @@ export default function PromptsPage() {
   const [searchQ, setSearchQ] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [toolFilter, setToolFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.prompts().then(setPrompts).catch(() => undefined);
+    setLoading(true);
+    api.prompts().then(setPrompts).catch(() => undefined).finally(() => setLoading(false));
   }, []);
 
   const filtered = useMemo(() => {
@@ -46,7 +48,11 @@ export default function PromptsPage() {
 
   const rows = filtered.map((p, i) => ({
     id: `${p.id ?? i}`,
-    title: p.title,
+    title: (
+      <span className="cell--truncate" title={String(p.title ?? "")}>
+        {p.title}
+      </span>
+    ),
     category: p.category,
     tool: p.recommended_tool ?? p.recommendedTool,
     model: p.recommended_model ?? p.recommendedModel,
@@ -76,6 +82,7 @@ export default function PromptsPage() {
       {isCreateOpen && null}
       <EntityTable
         title="Prompts"
+        loading={loading}
         toolbar={
           <SearchToolbar
             searchLabel="Search prompts"

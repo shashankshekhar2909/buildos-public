@@ -20,6 +20,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlmodel import Session, select
+from sqlalchemy.exc import IntegrityError
 
 from app.db import engine, get_session, init_db
 from app.models import AISession, ContentItem, Deployment, KnowledgeNote, Project, Prompt, Setting, Task, User
@@ -71,6 +72,13 @@ AUTH_TOKEN_TTL_SECONDS = int(os.getenv("AUTH_TOKEN_TTL_SECONDS", "43200"))
 AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "").strip()
 AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE", "").strip()
 AUTH0_ISSUER = os.getenv("AUTH0_ISSUER", f"https://{AUTH0_DOMAIN}/" if AUTH0_DOMAIN else "").strip()
+STRICT_STARTUP_VALIDATION = os.getenv("STRICT_STARTUP_VALIDATION", "true").strip().lower() in {"1", "true", "yes", "on"}
+PROJECT_FINDER_ALLOW_ANY_ROOT = os.getenv("PROJECT_FINDER_ALLOW_ANY_ROOT", "false").strip().lower() in {"1", "true", "yes", "on"}
+PROJECT_ALLOWED_ROOT_PREFIXES = [
+    Path(p.strip()).resolve()
+    for p in os.getenv("PROJECT_ALLOWED_ROOT_PREFIXES", "/app/projects,/home/shashank").split(",")
+    if p.strip()
+]
 _auth0_jwks_cache = {"keys": None, "expires_at": 0}
 DISCOVERY_ROOTS = [
     Path(p.strip()).resolve()
@@ -93,6 +101,15 @@ AI_CONTEXT_FILES = [
 
 PROTECTED_PATH_PREFIXES = ("/api/", "/api")
 UNPROTECTED_PATHS = {"/health", "/api/auth/token", "/api/auth/login"}
+
+
+def _auth_error_response(request, status_code: int, detail: str):
+    origin = request.headers.get("origin", "*")
+    response = JSONResponse(status_code=status_code, content={"detail": detail})
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Vary"] = "Origin"
+    return response
 
 
 def _encode_local_token(user: User) -> str:
@@ -156,6 +173,30 @@ def _verify_auth0_token(token: str) -> dict:
 
 def _verify_local_token(token: str) -> dict:
     return jwt.decode(token, AUTH_JWT_SECRET, algorithms=[AUTH_JWT_ALGORITHM])
+
+
+def _validate_startup_config() -> None:
+    if AUTH_MODE not in {"local", "auth0"}:
+        raise RuntimeError("AUTH_MODE must be one of: local, auth0")
+    if AUTH_MODE == "local":
+        if not AUTH_JWT_SECRET or AUTH_JWT_SECRET == "change-me-local-jwt-secret":
+            raise RuntimeError("AUTH_JWT_SECRET must be set to a strong secret for local mode")
+    if AUTH_MODE == "auth0":
+        if not AUTH0_DOMAIN:
+            raise RuntimeError("AUTH0_DOMAIN required for auth0 mode")
+        if not AUTH0_AUDIENCE:
+            raise RuntimeError("AUTH0_AUDIENCE required for auth0 mode")
+        if not AUTH0_ISSUER:
+            raise RuntimeError("AUTH0_ISSUER required for auth0 mode")
+
+
+def _path_within_allowed_prefixes(path: Path) -> bool:
+    if PROJECT_FINDER_ALLOW_ANY_ROOT:
+        return True
+    for prefix in PROJECT_ALLOWED_ROOT_PREFIXES:
+        if path == prefix or prefix in path.parents:
+            return True
+    return False
 
 
 def _ensure_project_folder(slug: str) -> str:
@@ -322,6 +363,40 @@ def _discover_project_folders() -> list[Path]:
     return folders
 
 
+def _get_configured_discovery_roots(session: Session) -> list[Path]:
+    roots = [PROJECTS_ROOT] + [r for r in DISCOVERY_ROOTS if r != PROJECTS_ROOT]
+    dynamic = session.exec(select(Setting).where(Setting.key == "project.discovery_roots")).first()
+    if dynamic and dynamic.value:
+        for raw in dynamic.value.split(","):
+            raw = raw.strip()
+            if not raw:
+                continue
+            p = Path(raw).resolve()
+            if p not in roots and _path_within_allowed_prefixes(p):
+                roots.append(p)
+    deduped: list[Path] = []
+    seen = set()
+    for root in roots:
+        key = str(root)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(root)
+    return deduped
+
+
+def _save_discovery_roots(session: Session, roots: list[Path]) -> None:
+    value = ",".join(str(r) for r in roots)
+    row = session.exec(select(Setting).where(Setting.key == "project.discovery_roots")).first()
+    if row:
+        row.value = value
+        row.updated_at = datetime.utcnow()
+        session.add(row)
+    else:
+        session.add(Setting(key="project.discovery_roots", value=value, is_secret=False))
+    session.commit()
+
+
 def _import_project_folder(session: Session, folder: Path) -> bool:
     slug = _slug_from_name(folder.name)
     existing = session.exec(select(Project).where(Project.slug == slug)).first()
@@ -342,6 +417,47 @@ def _import_project_folder(session: Session, folder: Path) -> bool:
     return True
 
 
+def _sync_projects_from_docker(session: Session) -> int:
+    if docker is None:
+        return 0
+    try:
+        client = docker.from_env()
+        containers = client.containers.list(all=True)
+    except Exception:
+        return 0
+    existing_slugs = {p.slug for p in session.exec(select(Project)).all()}
+    created = 0
+    compose_projects = set()
+    for c in containers:
+        row = _docker_container_payload(c)
+        compose_project = (row.get("compose_project") or "").strip()
+        if compose_project:
+            compose_projects.add(compose_project)
+    for compose_project in sorted(compose_projects):
+        slug = _slug_from_name(compose_project)
+        if not slug or slug in existing_slugs:
+            continue
+        obj = Project(
+            name=compose_project,
+            slug=slug,
+            category="product",
+            status="active",
+            priority="medium",
+            goal=f"Auto-discovered from Docker Compose project: {compose_project}",
+            local_path=None,
+        )
+        session.add(obj)
+        try:
+            session.commit()
+            session.refresh(obj)
+            existing_slugs.add(slug)
+            created += 1
+        except IntegrityError:
+            session.rollback()
+            existing_slugs.add(slug)
+    return created
+
+
 def _sanitize_user(user: User):
     return {
         "id": user.id,
@@ -357,6 +473,8 @@ def _sanitize_user(user: User):
 
 @app.on_event("startup")
 def on_startup() -> None:
+    if STRICT_STARTUP_VALIDATION:
+        _validate_startup_config()
     init_db()
     PROJECTS_ROOT.mkdir(parents=True, exist_ok=True)
     with Session(engine) as session:
@@ -430,6 +548,7 @@ def on_startup() -> None:
                     imported += 1
             if imported:
                 session.commit()
+        _sync_projects_from_docker(session)
 
         if session.exec(select(Deployment)).first() is None:
             buildos = session.exec(select(Project).where(Project.slug == "buildos")).first()
@@ -527,17 +646,17 @@ async def auth_middleware(request, call_next):
         return await call_next(request)
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
-        return JSONResponse(status_code=401, content={"detail": "Missing bearer token"})
+        return _auth_error_response(request, 401, "Missing bearer token")
     token = auth_header.split(" ", 1)[1].strip()
     try:
         claims = _verify_auth0_token(token) if AUTH_MODE == "auth0" else _verify_local_token(token)
         request.state.auth_claims = claims
     except jwt.ExpiredSignatureError:
-        return JSONResponse(status_code=401, content={"detail": "Token expired"})
+        return _auth_error_response(request, 401, "Token expired")
     except HTTPException as e:
-        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+        return _auth_error_response(request, e.status_code, str(e.detail))
     except Exception:
-        return JSONResponse(status_code=401, content={"detail": "Invalid token"})
+        return _auth_error_response(request, 401, "Invalid token")
     return await call_next(request)
 
 
@@ -583,8 +702,46 @@ def health():
     return APIResponse(success=True, data={"status": "ok"}, message="OK")
 
 
+@app.get("/api/system/readiness")
+def system_readiness():
+    checks = []
+    checks.append({"name": "auth_mode", "ok": AUTH_MODE in {"local", "auth0"}, "value": AUTH_MODE})
+    checks.append({"name": "projects_root_exists", "ok": PROJECTS_ROOT.exists() and PROJECTS_ROOT.is_dir(), "value": str(PROJECTS_ROOT)})
+    checks.append({"name": "db_file_present", "ok": Path(str(engine.url).replace("sqlite:///", "")).exists() if str(engine.url).startswith("sqlite:///") else True, "value": str(engine.url)})
+    docker_ok = False
+    docker_msg = "docker SDK unavailable"
+    if docker is not None:
+        try:
+            client = docker.from_env()
+            client.ping()
+            docker_ok = True
+            docker_msg = "connected"
+        except Exception as e:
+            docker_msg = str(e)
+    checks.append({"name": "docker_access", "ok": docker_ok, "value": docker_msg})
+    ok = all(c["ok"] for c in checks if c["name"] != "docker_access")
+    return APIResponse(
+        success=True,
+        data={
+            "ok": ok,
+            "auth_mode": AUTH_MODE,
+            "strict_startup_validation": STRICT_STARTUP_VALIDATION,
+            "project_finder_allow_any_root": PROJECT_FINDER_ALLOW_ANY_ROOT,
+            "project_allowed_root_prefixes": [str(p) for p in PROJECT_ALLOWED_ROOT_PREFIXES],
+            "checks": checks,
+        },
+        message="OK",
+    )
+
+
+@app.post("/api/system/sync-docker-projects")
+def sync_docker_projects(session: Session = Depends(get_session)):
+    created = _sync_projects_from_docker(session)
+    return APIResponse(success=True, data={"created": created}, message="Docker project sync completed")
+
+
 @app.get("/api/projects")
-def list_projects(search: str | None = None, status: str | None = None, category: str | None = None, priority: str | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=100), session: Session = Depends(get_session)):
+def list_projects(search: str | None = None, status: str | None = None, category: str | None = None, priority: str | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=500), session: Session = Depends(get_session)):
     query = select(Project)
     if search:
         query = query.where(Project.name.contains(search))
@@ -614,7 +771,7 @@ def auth_token(payload: dict, session: Session = Depends(get_session)):
 
 
 @app.get("/api/users")
-def list_users(search: str | None = None, role: str | None = None, is_active: bool | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=100), session: Session = Depends(get_session)):
+def list_users(search: str | None = None, role: str | None = None, is_active: bool | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=500), session: Session = Depends(get_session)):
     query = select(User)
     if search:
         query = query.where(User.username.contains(search))
@@ -680,7 +837,7 @@ def discover_projects(session: Session = Depends(get_session)):
     known_paths = {str((Path(p.local_path).resolve())) for p in session.exec(select(Project)).all() if p.local_path}
     known_slugs = {p.slug for p in session.exec(select(Project)).all()}
     items = []
-    roots = [PROJECTS_ROOT] + [r for r in DISCOVERY_ROOTS if r != PROJECTS_ROOT]
+    roots = _get_configured_discovery_roots(session)
     for root in roots:
         if not root.exists():
             continue
@@ -698,7 +855,24 @@ def discover_projects(session: Session = Depends(get_session)):
                     "already_imported": resolved in known_paths or slug in known_slugs,
                 }
             )
-    return APIResponse(success=True, data={"roots": [str(r) for r in roots], "items": items}, message="OK")
+    return APIResponse(success=True, data={"root": str(PROJECTS_ROOT), "roots": [str(r) for r in roots], "items": items}, message="OK")
+
+
+@app.post("/api/project-finder/roots")
+def add_project_finder_root(payload: dict, session: Session = Depends(get_session)):
+    raw_path = str(payload.get("path") or "").strip()
+    if not raw_path:
+        raise HTTPException(status_code=400, detail="path is required")
+    root = Path(raw_path).resolve()
+    if not root.exists() or not root.is_dir():
+        raise HTTPException(status_code=400, detail="path must be an existing directory")
+    if not _path_within_allowed_prefixes(root):
+        raise HTTPException(status_code=400, detail=f"path is outside allowed prefixes: {', '.join(str(p) for p in PROJECT_ALLOWED_ROOT_PREFIXES)}")
+    roots = _get_configured_discovery_roots(session)
+    if root not in roots:
+        roots.append(root)
+        _save_discovery_roots(session, roots)
+    return APIResponse(success=True, data={"roots": [str(r) for r in roots]}, message="Discovery root added")
 
 
 @app.post("/api/project-finder/import")
@@ -709,7 +883,7 @@ def import_discovered_projects(payload: dict, session: Session = Depends(get_ses
         raise HTTPException(status_code=400, detail="names or paths is required")
     imported = []
     skipped = []
-    roots = [PROJECTS_ROOT] + [r for r in DISCOVERY_ROOTS if r != PROJECTS_ROOT]
+    roots = _get_configured_discovery_roots(session)
     targets: list[Path] = []
     for name in names if isinstance(names, list) else []:
         if not isinstance(name, str) or not name.strip():
@@ -844,7 +1018,7 @@ def delete_project(item_id: int, session: Session = Depends(get_session)):
 
 
 @app.get("/api/prompts")
-def list_prompts(search: str | None = None, category: str | None = None, recommended_tool: str | None = None, project_id: int | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=100), session: Session = Depends(get_session)):
+def list_prompts(search: str | None = None, category: str | None = None, recommended_tool: str | None = None, project_id: int | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=500), session: Session = Depends(get_session)):
     query = select(Prompt)
     if search:
         query = query.where(Prompt.title.contains(search))
@@ -859,7 +1033,7 @@ def list_prompts(search: str | None = None, category: str | None = None, recomme
 
 
 @app.get("/api/content")
-def list_content(search: str | None = None, platform: str | None = None, content_type: str | None = None, status: str | None = None, project_id: int | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=100), session: Session = Depends(get_session)):
+def list_content(search: str | None = None, platform: str | None = None, content_type: str | None = None, status: str | None = None, project_id: int | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=500), session: Session = Depends(get_session)):
     query = select(ContentItem)
     if search:
         query = query.where(ContentItem.title.contains(search))
@@ -876,7 +1050,7 @@ def list_content(search: str | None = None, platform: str | None = None, content
 
 
 @app.get("/api/ai-sessions")
-def list_ai_sessions(search: str | None = None, tool: str | None = None, source_module: str | None = None, project_id: int | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=100), session: Session = Depends(get_session)):
+def list_ai_sessions(search: str | None = None, tool: str | None = None, source_module: str | None = None, project_id: int | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=500), session: Session = Depends(get_session)):
     query = select(AISession)
     if search:
         query = query.where(AISession.title.contains(search))
@@ -891,7 +1065,7 @@ def list_ai_sessions(search: str | None = None, tool: str | None = None, source_
 
 
 @app.get("/api/tasks")
-def list_tasks(search: str | None = None, status: str | None = None, priority: str | None = None, project_id: int | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=100), session: Session = Depends(get_session)):
+def list_tasks(search: str | None = None, status: str | None = None, priority: str | None = None, project_id: int | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=500), session: Session = Depends(get_session)):
     query = select(Task)
     if search:
         query = query.where(Task.title.contains(search))
@@ -906,7 +1080,7 @@ def list_tasks(search: str | None = None, status: str | None = None, priority: s
 
 
 @app.get("/api/knowledge")
-def list_knowledge(search: str | None = None, source_type: str | None = None, project_id: int | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=100), session: Session = Depends(get_session)):
+def list_knowledge(search: str | None = None, source_type: str | None = None, project_id: int | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=500), session: Session = Depends(get_session)):
     query = select(KnowledgeNote)
     if search:
         query = query.where(KnowledgeNote.title.contains(search))
@@ -919,7 +1093,7 @@ def list_knowledge(search: str | None = None, source_type: str | None = None, pr
 
 
 @app.get("/api/deployments")
-def list_deployments(search: str | None = None, status: str | None = None, environment: str | None = None, project_id: int | None = None, docker_compose_project: str | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=100), session: Session = Depends(get_session)):
+def list_deployments(search: str | None = None, status: str | None = None, environment: str | None = None, project_id: int | None = None, docker_compose_project: str | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=500), session: Session = Depends(get_session)):
     query = select(Deployment)
     if search:
         query = query.where(Deployment.service_name.contains(search))
@@ -936,7 +1110,7 @@ def list_deployments(search: str | None = None, status: str | None = None, envir
 
 
 @app.get("/api/settings")
-def list_settings(page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=100), session: Session = Depends(get_session)):
+def list_settings(page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=500), session: Session = Depends(get_session)):
     query = select(Setting)
     items = session.exec(_paginate(query, page, page_size)).all()
     return _list_response(items, len(session.exec(query).all()), page, page_size)

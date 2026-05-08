@@ -16,6 +16,16 @@ interface Props {
   filterB?: FilterConfig;
 }
 
+// Carbon's TableToolbarContent is display:flex with no wrap by default.
+// We constrain Select wrappers so they never push the toolbar wider than the
+// table container. Each filter select gets a fixed width; the search bar
+// takes whatever space remains.
+const selectWrapStyle: React.CSSProperties = {
+  width: "11rem",
+  minWidth: "9rem",
+  flexShrink: 0,
+};
+
 export function SearchToolbar({
   searchLabel = "Search",
   searchValue = "",
@@ -37,30 +47,34 @@ export function SearchToolbar({
         }}
       />
       {filterA ? (
-        <Select
-          id={filterA.id}
-          labelText={filterA.label}
-          value={filterA.value}
-          onChange={(e) => filterA.onChange(e.target.value)}
-        >
-          <SelectItem text={`All ${filterA.label}`} value="all" />
-          {filterA.items.map((item) => (
-            <SelectItem key={item} text={item} value={item} />
-          ))}
-        </Select>
+        <div style={selectWrapStyle}>
+          <Select
+            id={filterA.id}
+            labelText={filterA.label}
+            value={filterA.value}
+            onChange={(e) => filterA.onChange(e.target.value)}
+          >
+            <SelectItem text={`All ${filterA.label}`} value="all" />
+            {filterA.items.map((item) => (
+              <SelectItem key={item} text={item} value={item} />
+            ))}
+          </Select>
+        </div>
       ) : null}
       {filterB ? (
-        <Select
-          id={filterB.id}
-          labelText={filterB.label}
-          value={filterB.value}
-          onChange={(e) => filterB.onChange(e.target.value)}
-        >
-          <SelectItem text={`All ${filterB.label}`} value="all" />
-          {filterB.items.map((item) => (
-            <SelectItem key={item} text={item} value={item} />
-          ))}
-        </Select>
+        <div style={selectWrapStyle}>
+          <Select
+            id={filterB.id}
+            labelText={filterB.label}
+            value={filterB.value}
+            onChange={(e) => filterB.onChange(e.target.value)}
+          >
+            <SelectItem text={`All ${filterB.label}`} value="all" />
+            {filterB.items.map((item) => (
+              <SelectItem key={item} text={item} value={item} />
+            ))}
+          </Select>
+        </div>
       ) : null}
     </TableToolbarContent>
   );

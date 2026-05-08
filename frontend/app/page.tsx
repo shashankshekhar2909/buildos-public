@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Grid, Column, InlineNotification } from "@carbon/react";
+import { Grid, Column, InlineNotification, SkeletonPlaceholder, SkeletonText } from "@carbon/react";
 import { PageHeader } from "@/components/shared/page-header";
 import { MetricTile } from "@/components/dashboard/metric-tile";
 import { ActionTile } from "@/components/dashboard/action-tile";
@@ -21,8 +21,10 @@ export default function DashboardPage() {
   const [deploymentsCount, setDeploymentsCount] = useState(0);
   const [containerSummary, setContainerSummary] = useState<Record<string, unknown> | null>(null);
   const [apiError, setApiError] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     Promise.all([
       api.projects(),
       api.prompts(),
@@ -44,7 +46,8 @@ export default function DashboardPage() {
         setContainerSummary(cs);
         setApiError(false);
       })
-      .catch(() => setApiError(true));
+      .catch(() => setApiError(true))
+      .finally(() => setLoading(false));
   }, []);
 
   const metrics = [
@@ -63,6 +66,13 @@ export default function DashboardPage() {
     priority: <PriorityTag value={String(task.priority ?? "low")} />,
     project: task.project ?? "-",
   }));
+
+  const taskHeaders = [
+    { key: "title", header: "Title" },
+    { key: "status", header: "Status" },
+    { key: "priority", header: "Priority" },
+    { key: "project", header: "Project" },
+  ];
 
   return (
     <>
@@ -85,66 +95,93 @@ export default function DashboardPage() {
       <section className="section">
         <h2 className="section-heading">Metrics</h2>
         <Grid className="dashboard-grid">
-          {metrics.map(([label, value]) => (
-            <Column key={label} sm={4} md={4} lg={4} className="column--stack">
-              <MetricTile label={label} value={value} />
-            </Column>
-          ))}
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <Column key={i} sm={4} md={4} lg={4} className="column--stack">
+                  <SkeletonPlaceholder style={{ width: "100%", height: "6rem" }} />
+                </Column>
+              ))
+            : metrics.map(([label, value]) => (
+                <Column key={label} sm={4} md={4} lg={4} className="column--stack">
+                  <MetricTile label={label} value={value} />
+                </Column>
+              ))}
         </Grid>
       </section>
 
       <section className="section">
         <h2 className="section-heading">Container Health Snapshot</h2>
         <Grid className="dashboard-grid">
-          <Column sm={4} md={4} lg={4} className="column--stack">
-            <MetricTile label="Live Containers" value={Number(containerSummary?.total ?? 0)} />
-          </Column>
-          <Column sm={4} md={4} lg={4} className="column--stack">
-            <MetricTile label="Running" value={Number(containerSummary?.running ?? 0)} />
-          </Column>
-          <Column sm={4} md={4} lg={4} className="column--stack">
-            <MetricTile label="Unmapped" value={Number(containerSummary?.unmapped ?? 0)} />
-          </Column>
-          <Column sm={4} md={4} lg={4} className="column--stack">
-            <MetricTile label="Mapped Deployments" value={deploymentsCount} />
-          </Column>
+          {loading
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <Column key={i} sm={4} md={4} lg={4} className="column--stack">
+                  <SkeletonPlaceholder style={{ width: "100%", height: "6rem" }} />
+                </Column>
+              ))
+            : (
+              <>
+                <Column sm={4} md={4} lg={4} className="column--stack">
+                  <MetricTile label="Live Containers" value={Number(containerSummary?.total ?? 0)} />
+                </Column>
+                <Column sm={4} md={4} lg={4} className="column--stack">
+                  <MetricTile label="Running" value={Number(containerSummary?.running ?? 0)} />
+                </Column>
+                <Column sm={4} md={4} lg={4} className="column--stack">
+                  <MetricTile label="Unmapped" value={Number(containerSummary?.unmapped ?? 0)} />
+                </Column>
+                <Column sm={4} md={4} lg={4} className="column--stack">
+                  <MetricTile label="Mapped Deployments" value={deploymentsCount} />
+                </Column>
+              </>
+            )}
         </Grid>
       </section>
 
       <section className="section">
         <h2 className="section-heading">Quick Actions</h2>
         <Grid className="dashboard-grid">
-          <Column sm={4} md={4} lg={4} className="column--stack">
-            <ActionTile title="Projects" subtitle="Manage active and planned initiatives" href="/projects" />
-          </Column>
-          <Column sm={4} md={4} lg={4} className="column--stack">
-            <ActionTile title="Tasks" subtitle="Execution queue for product operations" href="/tasks" />
-          </Column>
-          <Column sm={4} md={4} lg={4} className="column--stack">
-            <ActionTile title="Prompts" subtitle="Reusable prompts mapped to tools and models" href="/prompts" />
-          </Column>
-          <Column sm={4} md={4} lg={4} className="column--stack">
-            <ActionTile title="Content Lab" subtitle="Capture, draft, and schedule content ideas" href="/content" />
-          </Column>
+          {loading
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <Column key={i} sm={4} md={4} lg={4} className="column--stack">
+                  <SkeletonPlaceholder style={{ width: "100%", height: "5rem" }} />
+                </Column>
+              ))
+            : (
+              <>
+                <Column sm={4} md={4} lg={4} className="column--stack">
+                  <ActionTile title="Projects" subtitle="Manage active and planned initiatives" href="/projects" />
+                </Column>
+                <Column sm={4} md={4} lg={4} className="column--stack">
+                  <ActionTile title="Tasks" subtitle="Execution queue for product operations" href="/tasks" />
+                </Column>
+                <Column sm={4} md={4} lg={4} className="column--stack">
+                  <ActionTile title="Prompts" subtitle="Reusable prompts mapped to tools and models" href="/prompts" />
+                </Column>
+                <Column sm={4} md={4} lg={4} className="column--stack">
+                  <ActionTile title="Content Lab" subtitle="Capture, draft, and schedule content ideas" href="/content" />
+                </Column>
+              </>
+            )}
         </Grid>
       </section>
 
       <section className="section">
-        <EntityTable
-          title="Current Tasks"
-          headers={[
-            { key: "title", header: "Title" },
-            { key: "status", header: "Status" },
-            { key: "priority", header: "Priority" },
-            { key: "project", header: "Project" },
-          ]}
-          rows={taskRows}
-        />
-        <div style={{ marginTop: "var(--space-sm)" }}>
-          <Link href="/tasks" style={{ fontSize: "0.875rem", color: "var(--cds-interactive)" }}>
-            View all tasks →
-          </Link>
-        </div>
+        {loading ? (
+          <SkeletonText paragraph lineCount={6} width="100%" />
+        ) : (
+          <>
+            <EntityTable
+              title="Current Tasks"
+              headers={taskHeaders}
+              rows={taskRows}
+            />
+            <div style={{ marginTop: "var(--space-sm)" }}>
+              <Link href="/tasks" style={{ fontSize: "0.875rem", color: "var(--cds-interactive)" }}>
+                View all tasks →
+              </Link>
+            </div>
+          </>
+        )}
       </section>
     </>
   );

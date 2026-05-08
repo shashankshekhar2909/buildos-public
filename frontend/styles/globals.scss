@@ -187,7 +187,10 @@ body {
 }
 
 .filter-bar__select {
-  min-width: 10rem;
+  flex: 0 0 auto;
+  width: 11rem;
+  min-width: 9rem;
+  max-width: 14rem;
 }
 
 .knowledge-card {
@@ -312,6 +315,27 @@ body {
 .structured-list-row__title {
   font-weight: 500;
   color: var(--cds-text-primary);
+}
+
+// ── Table cell utilities ──────────────────────────────────────────────────────
+// Long URL / text fields: truncate with ellipsis, show full value on hover via
+// the browser's default title tooltip. Apply .cell--truncate to a <span>
+// wrapping the cell content.
+.cell--truncate {
+  display: block;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Narrower cap for columns that appear alongside many others (e.g. Deployments).
+.cell--truncate-sm {
+  display: block;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @include breakpoint-down("md") {

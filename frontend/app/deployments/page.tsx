@@ -123,6 +123,7 @@ export default function DeploymentsPage() {
   const [envFilter, setEnvFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [cloudflareInfo, setCloudflareInfo] = useState<{ source: string; available: boolean; count: number; message: string }>({
     source: "",
     available: false,
@@ -135,8 +136,9 @@ export default function DeploymentsPage() {
   const [activeId, setActiveId] = useState<string>("");
   const [form, setForm] = useState<DeploymentForm>(emptyForm);
 
-  const refresh = () =>
-    Promise.all([api.deployments(), api.projects(), api.cloudflareRoutes().catch(() => null)])
+  const refresh = () => {
+    setLoading(true);
+    return Promise.all([api.deployments(), api.projects(), api.cloudflareRoutes().catch(() => null)])
       .then(([d, p, c]) => {
         setDeploymentRows(d);
         setProjects(p);
@@ -152,10 +154,12 @@ export default function DeploymentsPage() {
         }
         setError("");
       })
-      .catch(() => setError("Backend unavailable. Showing fallback data."));
+      .catch(() => setError("Backend unavailable. Showing fallback data."))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   const projectOptions = useMemo(() => unique(deployments.map((d) => d.project)), [deployments]);
@@ -214,23 +218,37 @@ export default function DeploymentsPage() {
 
   const rows = useMemo(
     () =>
-      filtered.map((d) => ({
+      filtered.map((d) => {
+        const internalVal = d.internalUrl || "-";
+        const exposedVal = d.publicUrl || d.publicDomain || d.cloudflareRouteHostname || d.internalUrl || "-";
+        const proj = projects.find((p) => Number(p.id) === d.projectId);
+        const gitVal =
+          String(
+            proj?.github_url ??
+              proj?.git_url ??
+              proj?.repo_url ??
+              proj?.html_url ??
+              proj?.clone_url ??
+              "-"
+          ) || "-";
+        const publicVal = d.publicUrl || "-";
+        return ({
         id: d.id,
         project: d.project,
         service: d.serviceName,
         environment: d.environment,
-        internal: d.internalUrl || "-",
-        exposedAt: d.publicUrl || d.publicDomain || d.cloudflareRouteHostname || d.internalUrl || "-",
-        projectGit:
-          String(
-            projects.find((p) => Number(p.id) === d.projectId)?.github_url ??
-              projects.find((p) => Number(p.id) === d.projectId)?.git_url ??
-              projects.find((p) => Number(p.id) === d.projectId)?.repo_url ??
-              projects.find((p) => Number(p.id) === d.projectId)?.html_url ??
-              projects.find((p) => Number(p.id) === d.projectId)?.clone_url ??
-              "-"
-          ) || "-",
-        public: d.publicUrl || "-",
+        internal: internalVal !== "-" ? (
+          <span className="cell--truncate-sm" title={internalVal}>{internalVal}</span>
+        ) : "-",
+        exposedAt: exposedVal !== "-" ? (
+          <span className="cell--truncate-sm" title={exposedVal}>{exposedVal}</span>
+        ) : "-",
+        projectGit: gitVal !== "-" ? (
+          <span className="cell--truncate-sm" title={gitVal}>{gitVal}</span>
+        ) : "-",
+        public: publicVal !== "-" ? (
+          <span className="cell--truncate-sm" title={publicVal}>{publicVal}</span>
+        ) : "-",
         status: <StatusTag value={d.status} />,
         actions: (
           <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
@@ -291,7 +309,8 @@ export default function DeploymentsPage() {
             </Button>
           </div>
         ),
-      })),
+      });
+      }),
     [filtered, openEdit, projects]
   );
 
@@ -503,6 +522,7 @@ export default function DeploymentsPage() {
 
       <EntityTable
         title={`Deployments (${rows.length})`}
+        loading={loading}
         headers={[
           { key: "project", header: "Project" },
           { key: "service", header: "Service" },

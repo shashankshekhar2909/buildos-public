@@ -18,6 +18,8 @@ import {
   CopyButton,
   Grid,
   Column,
+  SkeletonText,
+  SkeletonPlaceholder,
 } from "@carbon/react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -37,8 +39,10 @@ export default function ProjectDetailPage() {
   const [projectSessions, setProjectSessions] = useState<ApiItem[]>([]);
   const [projectNotes, setProjectNotes] = useState<ApiItem[]>([]);
   const [projectDeployments, setProjectDeployments] = useState<DeploymentView[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     api.projects()
       .then(async (projects) => {
         const p = projects.find((item) => String(item.slug) === params.slug);
@@ -65,7 +69,8 @@ export default function ProjectDetailPage() {
         setProjectNotes(notes);
         setProjectDeployments(mapDeploymentRows(deployments, allProjects));
       })
-      .catch(() => router.replace("/projects"));
+      .catch(() => router.replace("/projects"))
+      .finally(() => setLoading(false));
   }, [params.slug, router]);
 
   const techStack = useMemo(
@@ -77,7 +82,20 @@ export default function ProjectDetailPage() {
     [project?.tech_stack]
   );
 
-  if (!project) return null;
+  if (loading || !project) {
+    return (
+      <>
+        <div style={{ marginBottom: "var(--space-xl)" }}>
+          <SkeletonText heading width="40%" />
+          <div style={{ marginTop: "var(--space-sm)" }}>
+            <SkeletonText paragraph lineCount={2} width="60%" />
+          </div>
+        </div>
+        <SkeletonPlaceholder style={{ width: "100%", height: "8rem", marginBottom: "1rem" }} />
+        <SkeletonText paragraph lineCount={4} width="100%" />
+      </>
+    );
+  }
 
   return (
     <>
@@ -98,19 +116,44 @@ export default function ProjectDetailPage() {
             </div>
           </Column>
           <Column sm={4} md={4} lg={8}>
-            <p style={{ margin: 0 }}><strong>Local Path:</strong> <code>{String(project.local_path ?? "-")}</code></p>
-            <p style={{ margin: "0.35rem 0 0" }}><strong>Public URL:</strong> {String(project.public_url ?? "-")}</p>
-            <p style={{ margin: "0.35rem 0 0" }}>
-              <strong>Git Origin:</strong>{" "}
-              {String(
+            {(() => {
+              const localPath = String(project.local_path ?? "-");
+              const publicUrl = String(project.public_url ?? "-");
+              const gitUrl = String(
                 project.github_url ??
                 project.git_url ??
                 project.repo_url ??
                 project.html_url ??
                 project.clone_url ??
                 "-"
-              )}
-            </p>
+              );
+              return (
+                <>
+                  <p style={{ margin: 0 }}>
+                    <strong>Local Path:</strong>{" "}
+                    <code
+                      className="cell--truncate"
+                      style={{ display: "inline-block", maxWidth: "28rem", verticalAlign: "bottom" }}
+                      title={localPath}
+                    >
+                      {localPath}
+                    </code>
+                  </p>
+                  <p style={{ margin: "0.35rem 0 0" }}>
+                    <strong>Public URL:</strong>{" "}
+                    <span className="cell--truncate" style={{ display: "inline-block", maxWidth: "28rem", verticalAlign: "bottom" }} title={publicUrl}>
+                      {publicUrl}
+                    </span>
+                  </p>
+                  <p style={{ margin: "0.35rem 0 0" }}>
+                    <strong>Git Origin:</strong>{" "}
+                    <span className="cell--truncate" style={{ display: "inline-block", maxWidth: "28rem", verticalAlign: "bottom" }} title={gitUrl}>
+                      {gitUrl}
+                    </span>
+                  </p>
+                </>
+              );
+            })()}
           </Column>
         </Grid>
       </Tile>

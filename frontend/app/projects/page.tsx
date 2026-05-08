@@ -59,18 +59,33 @@ export default function ProjectsPage() {
   const [files, setFiles] = useState<ApiItem[]>([]);
   const [filesError, setFilesError] = useState("");
   const [isFinderOpen, setIsFinderOpen] = useState(false);
+  const [isRootOpen, setIsRootOpen] = useState(false);
   const [discovered, setDiscovered] = useState<ApiItem[]>([]);
   const [selectedNames, setSelectedNames] = useState<string[]>([]);
   const [finderRoot, setFinderRoot] = useState("");
+  const [finderRoots, setFinderRoots] = useState<string[]>([]);
   const [finderMessage, setFinderMessage] = useState("");
+  const [newRootPath, setNewRootPath] = useState("");
+  const [rootError, setRootError] = useState("");
   const [searchQ, setSearchQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState("");
 
-  const refreshProjects = () => api.projects().then(setProjects).catch(() => undefined);
+  const refreshProjects = async () => {
+    try {
+      const data = await api.projects();
+      setProjects(data);
+      setApiError("");
+    } catch {
+      setApiError("Could not load projects. Check that the backend is running.");
+    }
+  };
 
   useEffect(() => {
-    refreshProjects();
+    setLoading(true);
+    refreshProjects().finally(() => setLoading(false));
   }, []);
 
   const openFiles = async (project: ApiItem, path = ".") => {
@@ -116,20 +131,24 @@ export default function ProjectsPage() {
     });
   }, [projects, searchQ, statusFilter, priorityFilter]);
 
-  const rows = filteredProjects.map((project, i) => ({
-    id: `${project.id ?? i}`,
-    name: <Link href={`/projects/${project.slug}`}>{project.name}</Link>,
-    category: project.category,
-    status: <StatusTag value={String(project.status ?? "idea")} />,
-    priority: <PriorityTag value={String(project.priority ?? "low")} />,
-    git: String(
+  const rows = filteredProjects.map((project, i) => {
+    const gitUrl = String(
       project.github_url ??
       project.git_url ??
       project.repo_url ??
       project.html_url ??
       project.clone_url ??
       "-"
-    ),
+    );
+    return {
+    id: `${project.id ?? i}`,
+    name: <Link href={`/projects/${project.slug}`}>{project.name}</Link>,
+    category: project.category,
+    status: <StatusTag value={String(project.status ?? "idea")} />,
+    priority: <PriorityTag value={String(project.priority ?? "low")} />,
+    git: gitUrl !== "-" ? (
+      <span className="cell--truncate" title={gitUrl}>{gitUrl}</span>
+    ) : "-",
     updated: (project.updated_at || "").toString().slice(0, 10) || project.updatedDate || "-",
     actions: (
       <>
@@ -140,7 +159,8 @@ export default function ProjectsPage() {
         </OverflowMenu>
       </>
     ),
-  }));
+  };
+});
 
   const onCreateProject = async () => {
     const slug = projectForm.slug || slugify(projectForm.name);
@@ -162,9 +182,26 @@ export default function ProjectsPage() {
     const data = await api.discoverProjects();
     setDiscovered((data.items as ApiItem[]) ?? []);
     setFinderRoot(String(data.root ?? ""));
+    setFinderRoots(Array.isArray(data.roots) ? (data.roots as string[]) : []);
     setSelectedNames([]);
     setFinderMessage("");
     setIsFinderOpen(true);
+  };
+
+  const onAddRoot = async () => {
+    const path = newRootPath.trim();
+    if (!path) return;
+    try {
+      setRootError("");
+      await api.addProjectFinderRoot(path);
+      setNewRootPath("");
+      setIsRootOpen(false);
+      if (isFinderOpen) {
+        await openFinder();
+      }
+    } catch (e) {
+      setRootError(e instanceof Error ? e.message : "Failed to add directory");
+    }
   };
 
   const onImportSelected = async () => {
@@ -188,12 +225,25 @@ export default function ProjectsPage() {
         onAction={() => setIsCreateOpen(true)}
       />
 
-      <div style={{ marginBottom: "var(--space-md)", display: "flex", justifyContent: "flex-end" }}>
+      {apiError && (
+        <InlineNotification
+          kind="error"
+          lowContrast
+          hideCloseButton
+          title="API error"
+          subtitle={apiError}
+          className="notification--stacked"
+        />
+      )}
+
+      <div style={{ marginBottom: "var(--space-md)", display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+        <Button kind="tertiary" onClick={() => setIsRootOpen(true)}>Add Directory</Button>
         <Button kind="secondary" onClick={() => { void openFinder(); }}>Find Existing Projects</Button>
       </div>
 
       <EntityTable
         title="Projects"
+        loading={loading}
         toolbar={
           <SearchToolbar
             searchLabel="Search projects"
@@ -317,6 +367,7 @@ export default function ProjectsPage() {
         onRequestSubmit={() => { void onImportSelected(); }}
       >
         <p style={{ marginBottom: "0.75rem" }}>Root: <code>{finderRoot}</code></p>
+        <p style={{ marginBottom: "0.75rem" }}>Roots: <code>{finderRoots.join(", ") || "-"}</code></p>
         {finderMessage ? (
           <InlineNotification
             kind="success"
@@ -354,6 +405,33 @@ export default function ProjectsPage() {
             );
           })}
         </div>
+      </Modal>
+
+      <Modal
+        open={isRootOpen}
+        modalHeading="Add Project Directory"
+        primaryButtonText="Add"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => setIsRootOpen(false)}
+        onRequestSubmit={() => { void onAddRoot(); }}
+      >
+        {rootError ? (
+          <InlineNotification
+            kind="error"
+            lowContrast
+            hideCloseButton
+            title="Add directory failed"
+            subtitle={rootError}
+            style={{ marginBottom: "0.75rem" }}
+          />
+        ) : null}
+        <TextInput
+          id="project-root-path"
+          labelText="Directory Path"
+          placeholder="/app/projects,/workspace,/mnt/projects..."
+          value={newRootPath}
+          onChange={(e) => setNewRootPath(e.target.value)}
+        />
       </Modal>
     </>
   );

@@ -24,9 +24,11 @@ export default function AISessionsPage() {
   const [searchQ, setSearchQ] = useState("");
   const [toolFilter, setToolFilter] = useState("all");
   const [moduleFilter, setModuleFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.aiSessions().then(setAiSessions).catch(() => undefined);
+    setLoading(true);
+    api.aiSessions().then(setAiSessions).catch(() => undefined).finally(() => setLoading(false));
   }, []);
 
   const filtered = useMemo(() => {
@@ -54,7 +56,11 @@ export default function AISessionsPage() {
 
     return {
       id: `${item.id ?? i}`,
-      title: item.title,
+      title: (
+        <span className="cell--truncate" title={String(item.title ?? "")}>
+          {item.title}
+        </span>
+      ),
       tool: item.tool,
       model: item.model,
       module: item.source_module ?? item.sourceModule,
@@ -82,6 +88,7 @@ export default function AISessionsPage() {
       {isCreateOpen && null}
       <EntityTable
         title="AI Sessions"
+        loading={loading}
         toolbar={
           <SearchToolbar
             searchLabel="Search sessions"

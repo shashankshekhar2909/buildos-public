@@ -16,9 +16,11 @@ export default function TasksPage() {
   const [searchQ, setSearchQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.tasks().then(setTasks).catch(() => undefined);
+    setLoading(true);
+    api.tasks().then(setTasks).catch(() => undefined).finally(() => setLoading(false));
   }, []);
 
   const filtered = useMemo(() => {
@@ -77,6 +79,7 @@ export default function TasksPage() {
       {isCreateOpen && null}
       <EntityTable
         title="Tasks"
+        loading={loading}
         toolbar={
           <SearchToolbar
             searchLabel="Search tasks"

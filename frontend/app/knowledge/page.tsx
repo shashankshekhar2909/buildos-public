@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Grid, Column, Tile, Search, Select, SelectItem, Tag } from "@carbon/react";
+import { Grid, Column, Tile, Search, Select, SelectItem, Tag, SkeletonText } from "@carbon/react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusTag } from "@/components/shared/tags";
@@ -13,9 +13,11 @@ export default function KnowledgePage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.knowledge().then(setKnowledgeNotes).catch(() => undefined);
+    setLoading(true);
+    api.knowledge().then(setKnowledgeNotes).catch(() => undefined).finally(() => setLoading(false));
   }, []);
 
   const filtered = useMemo(() => {
@@ -64,7 +66,9 @@ export default function KnowledgePage() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <SkeletonText paragraph lineCount={8} width="100%" />
+      ) : filtered.length === 0 ? (
         <EmptyState
           title="No notes match"
           description="Try a different search term or clear the filter."

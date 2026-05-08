@@ -87,6 +87,7 @@ export default function UsersPage() {
   const [apiError, setApiError] = useState("");
   // "table" | "card" — segmented view toggle
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
+  const [loading, setLoading] = useState(true);
 
   const refreshUsers = async () => {
     try {
@@ -99,7 +100,8 @@ export default function UsersPage() {
   };
 
   useEffect(() => {
-    void refreshUsers();
+    setLoading(true);
+    void refreshUsers().finally(() => setLoading(false));
   }, []);
 
   // ── Filtering ──────────────────────────────────────────────────────────────
@@ -284,6 +286,7 @@ export default function UsersPage() {
       {viewMode === "table" && (
         <EntityTable
           title={`Users (${filtered.length})`}
+          loading={loading}
           headers={[
             { key: "name", header: "Name" },
             { key: "email", header: "Email" },

@@ -186,3 +186,7 @@ git remote add public git@github.com:shashankshekhar2909/buildos-public.git
 ```
 
 The exporter uses `public-manifest.txt` as an allowlist and force-pushes only that curated snapshot to the public repo branch (`main` by default).
+
+## Production Hardening
+
+See [docs/PROD_READINESS.md](docs/PROD_READINESS.md) for production checklist, strict env validation, root-import safety, and readiness checks.
