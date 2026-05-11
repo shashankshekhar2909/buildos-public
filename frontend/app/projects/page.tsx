@@ -75,7 +75,11 @@ export default function ProjectsPage() {
 
   const refreshProjects = async () => {
     try {
-      const data = await api.projects();
+      const data = await api.projects({
+        search: searchQ || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        priority: priorityFilter === "all" ? undefined : priorityFilter,
+      });
       setProjects(data);
       setApiError("");
     } catch {
@@ -86,7 +90,7 @@ export default function ProjectsPage() {
   useEffect(() => {
     setLoading(true);
     refreshProjects().finally(() => setLoading(false));
-  }, []);
+  }, [searchQ, statusFilter, priorityFilter]);
 
   const openFiles = async (project: ApiItem, path = ".") => {
     try {
@@ -117,21 +121,7 @@ export default function ProjectsPage() {
     [files]
   );
 
-  const filteredProjects = useMemo(() => {
-    const term = searchQ.trim().toLowerCase();
-    return projects.filter((p) => {
-      const matchSearch =
-        !term ||
-        String(p.name ?? "").toLowerCase().includes(term) ||
-        String(p.category ?? "").toLowerCase().includes(term) ||
-        String(p.goal ?? "").toLowerCase().includes(term);
-      const matchStatus = statusFilter === "all" || String(p.status ?? "") === statusFilter;
-      const matchPriority = priorityFilter === "all" || String(p.priority ?? "") === priorityFilter;
-      return matchSearch && matchStatus && matchPriority;
-    });
-  }, [projects, searchQ, statusFilter, priorityFilter]);
-
-  const rows = filteredProjects.map((project, i) => {
+  const rows = projects.map((project, i) => {
     const gitUrl = String(
       project.github_url ??
       project.git_url ??

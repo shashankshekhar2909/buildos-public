@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Button,
   Column,
@@ -91,7 +91,16 @@ export default function UsersPage() {
 
   const refreshUsers = async () => {
     try {
-      const data = await api.users();
+      const data = await api.users({
+        search: searchQ || undefined,
+        role: roleFilter === "all" ? undefined : roleFilter,
+        is_active:
+          statusFilter === "all"
+            ? undefined
+            : statusFilter === "active"
+              ? true
+              : false,
+      });
       setUsers(data);
       setApiError("");
     } catch {
@@ -102,22 +111,7 @@ export default function UsersPage() {
   useEffect(() => {
     setLoading(true);
     void refreshUsers().finally(() => setLoading(false));
-  }, []);
-
-  // ── Filtering ──────────────────────────────────────────────────────────────
-  const filtered = useMemo(() => {
-    const term = searchQ.trim().toLowerCase();
-    return users.filter((u) => {
-      const matchSearch =
-        !term ||
-        String(u.full_name ?? u.username ?? "").toLowerCase().includes(term) ||
-        String(u.email ?? "").toLowerCase().includes(term);
-      const matchRole = roleFilter === "all" || String(u.role ?? "") === roleFilter;
-      const status = u.is_active ? "active" : "inactive";
-      const matchStatus = statusFilter === "all" || status === statusFilter;
-      return matchSearch && matchRole && matchStatus;
-    });
-  }, [users, searchQ, roleFilter, statusFilter]);
+  }, [searchQ, roleFilter, statusFilter]);
 
   const onAddUser = async () => {
     const trimmedName = form.name.trim();
@@ -163,7 +157,7 @@ export default function UsersPage() {
   };
 
   // ── Table rows ──────────────────────────────────────────────────────────────
-  const tableRows = filtered.map((u) => ({
+  const tableRows = users.map((u) => ({
     id: String(u.id ?? ""),
     name: String(u.full_name ?? u.username ?? "-"),
     email: String(u.email ?? "-"),
@@ -285,7 +279,7 @@ export default function UsersPage() {
       {/* Table view */}
       {viewMode === "table" && (
         <EntityTable
-          title={`Users (${filtered.length})`}
+          title={`Users (${users.length})`}
           loading={loading}
           headers={[
             { key: "name", header: "Name" },
@@ -302,7 +296,7 @@ export default function UsersPage() {
       {/* Card view */}
       {viewMode === "card" && (
         <Grid fullWidth>
-          {filtered.map((user) => (
+          {users.map((user) => (
             <Column key={String(user.id ?? user.username ?? user.email ?? "")} sm={4} md={4} lg={4} className="column--stack">
               <UserCard user={user} onToggleActive={onToggleActive} />
             </Column>

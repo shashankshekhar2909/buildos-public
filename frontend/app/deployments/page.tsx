@@ -138,7 +138,17 @@ export default function DeploymentsPage() {
 
   const refresh = () => {
     setLoading(true);
-    return Promise.all([api.deployments(), api.projects(), api.cloudflareRoutes().catch(() => null)])
+    const selectedProject = deployments.find((d) => d.project === projectFilter);
+    return Promise.all([
+      api.deployments({
+        search: q || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        environment: envFilter === "all" ? undefined : envFilter,
+        project_id: projectFilter === "all" ? undefined : selectedProject?.projectId,
+      }),
+      api.projects(),
+      api.cloudflareRoutes().catch(() => null),
+    ])
       .then(([d, p, c]) => {
         setDeploymentRows(d);
         setProjects(p);
@@ -160,25 +170,9 @@ export default function DeploymentsPage() {
 
   useEffect(() => {
     void refresh();
-  }, []);
+  }, [q, statusFilter, envFilter, projectFilter]);
 
   const projectOptions = useMemo(() => unique(deployments.map((d) => d.project)), [deployments]);
-
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    return deployments.filter((d) => {
-      const matchesSearch =
-        term.length === 0 ||
-        [d.project, d.serviceName, d.internalUrl, d.publicDomain, d.publicUrl, d.cloudflareRouteHostname]
-          .join(" ")
-          .toLowerCase()
-          .includes(term);
-      const matchesStatus = statusFilter === "all" || d.status === statusFilter;
-      const matchesEnv = envFilter === "all" || d.environment === envFilter;
-      const matchesProject = projectFilter === "all" || d.project === projectFilter;
-      return matchesSearch && matchesStatus && matchesEnv && matchesProject;
-    });
-  }, [deployments, q, statusFilter, envFilter, projectFilter]);
 
   const openEdit = useCallback(
     (id: string) => {
@@ -218,7 +212,7 @@ export default function DeploymentsPage() {
 
   const rows = useMemo(
     () =>
-      filtered.map((d) => {
+      deployments.map((d) => {
         const internalVal = d.internalUrl || "-";
         const exposedVal = d.publicUrl || d.publicDomain || d.cloudflareRouteHostname || d.internalUrl || "-";
         const proj = projects.find((p) => Number(p.id) === d.projectId);
@@ -311,7 +305,7 @@ export default function DeploymentsPage() {
         ),
       });
       }),
-    [filtered, openEdit, projects]
+    [deployments, openEdit, projects]
   );
 
   const formFields = (
