@@ -9,7 +9,8 @@ from pathlib import Path
 import platform
 import psutil
 import configparser
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
 
 try:
     import docker
@@ -73,6 +74,10 @@ AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "").strip()
 AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE", "").strip()
 AUTH0_ISSUER = os.getenv("AUTH0_ISSUER", f"https://{AUTH0_DOMAIN}/" if AUTH0_DOMAIN else "").strip()
 STRICT_STARTUP_VALIDATION = os.getenv("STRICT_STARTUP_VALIDATION", "true").strip().lower() in {"1", "true", "yes", "on"}
+AI_CONTEXT_PROVIDER_URL = os.getenv("AI_CONTEXT_PROVIDER_URL", "").strip()
+AI_CONTEXT_MODEL = os.getenv("AI_CONTEXT_MODEL", "").strip()
+AI_CONTEXT_API_KEY = os.getenv("AI_CONTEXT_API_KEY", "").strip()
+AI_CONTEXT_TIMEOUT_SECONDS = int(os.getenv("AI_CONTEXT_TIMEOUT_SECONDS", "60"))
 PROJECT_FINDER_ALLOW_ANY_ROOT = os.getenv("PROJECT_FINDER_ALLOW_ANY_ROOT", "false").strip().lower() in {"1", "true", "yes", "on"}
 PROJECT_ALLOWED_ROOT_PREFIXES = [
     Path(p.strip()).resolve()
@@ -469,6 +474,97 @@ def _sanitize_user(user: User):
         "created_at": user.created_at,
         "updated_at": user.updated_at,
     }
+
+
+def _fallback_context_file(filename: str, project_name: str, target_agent: str, prompt_payload: dict) -> str:
+    return (
+        f"# {filename}\n\n"
+        f"Project: {project_name}\n"
+        f"Target Agent: {target_agent}\n\n"
+        f"Goal:\n{prompt_payload.get('goal', '')}\n\n"
+        f"Current State:\n{prompt_payload.get('current_state', '')}\n\n"
+        f"Tech Stack:\n{prompt_payload.get('tech_stack', '')}\n\n"
+        f"Additional Context:\n{prompt_payload.get('extra_context', '')}\n"
+    ).strip()
+
+
+def _generate_project_context_via_llm(project_name: str, target_agent: str, desired_files: list[str], payload: dict) -> list[dict]:
+    if not AI_CONTEXT_PROVIDER_URL or not AI_CONTEXT_MODEL or not AI_CONTEXT_API_KEY:
+        raise HTTPException(
+            status_code=400,
+            detail="AI context generation is not configured. Set AI_CONTEXT_PROVIDER_URL, AI_CONTEXT_MODEL, and AI_CONTEXT_API_KEY.",
+        )
+
+    system_prompt = (
+        "You generate practical software project context documents. "
+        "Return only valid JSON matching this schema: "
+        '{"files":[{"filename":"string","content":"string"}]}. '
+        "Include exactly the requested filenames."
+    )
+    user_payload = {
+        "project_name": project_name,
+        "target_agent": target_agent,
+        "goal": payload.get("goal", ""),
+        "current_state": payload.get("current_state", ""),
+        "tech_stack": payload.get("tech_stack", ""),
+        "extra_context": payload.get("extra_context", ""),
+        "desired_files": desired_files,
+    }
+    body = {
+        "model": AI_CONTEXT_MODEL,
+        "temperature": 0.2,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": json.dumps(user_payload)},
+        ],
+    }
+    request = Request(
+        f"{AI_CONTEXT_PROVIDER_URL.rstrip('/')}/v1/chat/completions",
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {AI_CONTEXT_API_KEY}",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=AI_CONTEXT_TIMEOUT_SECONDS) as response:
+            raw = json.loads(response.read().decode("utf-8"))
+    except HTTPError as e:
+        detail = e.read().decode("utf-8") if hasattr(e, "read") else str(e)
+        raise HTTPException(status_code=502, detail=f"LLM provider error: {detail}")
+    except URLError as e:
+        raise HTTPException(status_code=502, detail=f"LLM provider unreachable: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"LLM call failed: {e}")
+
+    try:
+        content = raw["choices"][0]["message"]["content"]
+        parsed = json.loads(content) if isinstance(content, str) else content
+        files = parsed.get("files", [])
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Invalid LLM response format: {e}")
+
+    if not isinstance(files, list):
+        raise HTTPException(status_code=502, detail="Invalid LLM response: files is not a list")
+
+    file_map = {}
+    for item in files:
+        if not isinstance(item, dict):
+            continue
+        filename = str(item.get("filename", "")).strip()
+        if not filename:
+            continue
+        file_map[filename] = str(item.get("content", "")).strip()
+
+    result = []
+    for filename in desired_files:
+        content = file_map.get(filename)
+        if not content:
+            content = _fallback_context_file(filename, project_name, target_agent, payload)
+        result.append({"filename": filename, "content": content})
+    return result
 
 
 @app.on_event("startup")
@@ -1655,12 +1751,14 @@ def generate_project_context(payload: dict, session: Session = Depends(get_sessi
 
     project = session.get(Project, int(project_id)) if project_id and str(project_id).isdigit() else None
     project_name = project.name if project else "Unknown Project"
-    files = []
-    for filename in desired_files:
-        content = f"# {filename}\n\nProject: {project_name}\nTarget Agent: {target_agent}\n\n{extra_context}".strip()
-        files.append({"filename": filename, "content": content})
-
-    return APIResponse(success=True, data={"files": files}, message="Context files generated")
+    llm_payload = {
+        "goal": payload.get("goal") or (project.goal if project else ""),
+        "current_state": payload.get("current_state", ""),
+        "tech_stack": payload.get("tech_stack") or (project.tech_stack if project else ""),
+        "extra_context": extra_context,
+    }
+    files = _generate_project_context_via_llm(project_name, str(target_agent), [str(f) for f in desired_files], llm_payload)
+    return APIResponse(success=True, data={"files": files, "model": AI_CONTEXT_MODEL, "provider_url": AI_CONTEXT_PROVIDER_URL}, message="Context files generated")
 
 
 _register_item_routes("/api/prompts", Prompt, PromptCreate, PromptUpdate)

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Grid, Column, Tile, Search, Select, SelectItem, Tag, SkeletonText } from "@carbon/react";
+import { Grid, Column, Tile, Search, Select, SelectItem, Tag, SkeletonText, Modal, TextInput, TextArea, Button } from "@carbon/react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusTag } from "@/components/shared/tags";
@@ -11,9 +11,16 @@ import type { ApiItem } from "@/lib/api";
 export default function KnowledgePage() {
   const [knowledgeNotes, setKnowledgeNotes] = useState<ApiItem[]>([]);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [formTitle, setFormTitle] = useState("");
+  const [formContent, setFormContent] = useState("");
+  const [formSource, setFormSource] = useState("manual");
+  const [createBusy, setCreateBusy] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [editId, setEditId] = useState<number | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -25,11 +32,12 @@ export default function KnowledgePage() {
     return knowledgeNotes.filter((note) => {
       const text = String(note.content ?? note.text ?? "").toLowerCase();
       const project = String(note.project ?? "").toLowerCase();
+      const source = String(note.source_type ?? "manual");
       const matchSearch = !term || text.includes(term) || project.includes(term);
-      const matchStatus = statusFilter === "all" || String(note.status ?? "") === statusFilter;
-      return matchSearch && matchStatus;
+      const matchSource = sourceFilter === "all" || source === sourceFilter;
+      return matchSearch && matchSource;
     });
-  }, [knowledgeNotes, query, statusFilter]);
+  }, [knowledgeNotes, query, sourceFilter]);
 
   return (
     <>
@@ -39,8 +47,6 @@ export default function KnowledgePage() {
         actionLabel="New Note"
         onAction={() => setIsCreateOpen(true)}
       />
-      {isCreateOpen && null}
-
       <div className="filter-bar">
         <div className="filter-bar__search">
           <Search
@@ -53,15 +59,16 @@ export default function KnowledgePage() {
         </div>
         <div className="filter-bar__select">
           <Select
-            id="knowledge-status"
-            labelText="Status"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            id="knowledge-source"
+            labelText="Source"
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
           >
-            <SelectItem value="all" text="All statuses" />
-            <SelectItem value="active" text="active" />
-            <SelectItem value="planned" text="planned" />
-            <SelectItem value="archived" text="archived" />
+            <SelectItem value="all" text="All sources" />
+            <SelectItem value="manual" text="manual" />
+            <SelectItem value="project" text="project" />
+            <SelectItem value="meeting" text="meeting" />
+            <SelectItem value="agent" text="agent" />
           </Select>
         </div>
       </div>
@@ -81,17 +88,105 @@ export default function KnowledgePage() {
               <Column key={`${note.id ?? i}`} sm={4} md={4} lg={8} className="column--stack">
                 <Tile className="knowledge-card">
                   <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
-                    <StatusTag value={String(note.status ?? "active")} />
+                    <StatusTag value={String(note.source_type ?? "manual")} />
                     {project && <Tag type="blue" size="sm">{project}</Tag>}
                   </div>
                   <p className="knowledge-card__text">{note.content ?? note.text}</p>
                   <p className="knowledge-card__meta">{note.project ?? "General"}</p>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <Button
+                      kind="tertiary"
+                      size="sm"
+                      onClick={() => {
+                        setEditId(typeof note.id === "number" ? note.id : null);
+                        setFormTitle(String(note.title ?? ""));
+                        setFormContent(String(note.content ?? note.text ?? ""));
+                        setFormSource(String(note.source_type ?? "manual"));
+                        setIsCreateOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      kind="danger--tertiary"
+                      size="sm"
+                      onClick={() => {
+                        setEditId(typeof note.id === "number" ? note.id : null);
+                        setIsDeleteOpen(true);
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </Tile>
               </Column>
             );
           })}
         </Grid>
       )}
+      <Modal
+        open={isCreateOpen}
+        modalHeading={editId ? "Edit Knowledge Note" : "Create Knowledge Note"}
+        primaryButtonText={createBusy ? (editId ? "Saving..." : "Creating...") : (editId ? "Save" : "Create")}
+        secondaryButtonText="Cancel"
+        primaryButtonDisabled={createBusy || !formTitle.trim() || !formContent.trim()}
+        onRequestClose={() => {
+          setIsCreateOpen(false);
+          setCreateError("");
+        }}
+        onRequestSubmit={async () => {
+          setCreateError("");
+          setCreateBusy(true);
+          try {
+            const payload = {
+              title: formTitle.trim(),
+              content: formContent.trim(),
+              source_type: formSource,
+            };
+            if (editId) await api.updateKnowledge(editId, payload);
+            else await api.createKnowledge(payload);
+            setKnowledgeNotes(await api.knowledge());
+            setIsCreateOpen(false);
+            setEditId(null);
+            setFormTitle("");
+            setFormContent("");
+            setFormSource("manual");
+          } catch (e) {
+            setCreateError(e instanceof Error ? e.message : "Failed to create note");
+          } finally {
+            setCreateBusy(false);
+          }
+        }}
+      >
+        <TextInput id="knowledge-title" labelText="Title" value={formTitle} onChange={(e) => setFormTitle(e.currentTarget.value)} />
+        <div style={{ height: "0.75rem" }} />
+        <Select id="knowledge-source" labelText="Source Type" value={formSource} onChange={(e) => setFormSource(e.currentTarget.value)}>
+          <SelectItem value="manual" text="manual" />
+          <SelectItem value="project" text="project" />
+          <SelectItem value="meeting" text="meeting" />
+          <SelectItem value="agent" text="agent" />
+        </Select>
+        <div style={{ height: "0.75rem" }} />
+        <TextArea id="knowledge-content" labelText="Content" rows={8} value={formContent} onChange={(e) => setFormContent(e.currentTarget.value)} />
+        {createError ? <p style={{ color: "var(--cds-support-error)", marginTop: "0.75rem" }}>{createError}</p> : null}
+      </Modal>
+      <Modal
+        open={isDeleteOpen}
+        modalHeading="Delete Knowledge Note"
+        danger
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => setIsDeleteOpen(false)}
+        onRequestSubmit={async () => {
+          if (!editId) return;
+          await api.deleteKnowledge(editId);
+          setKnowledgeNotes(await api.knowledge());
+          setIsDeleteOpen(false);
+          setEditId(null);
+        }}
+      >
+        This knowledge note will be permanently deleted.
+      </Modal>
     </>
   );
 }

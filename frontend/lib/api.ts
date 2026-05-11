@@ -120,14 +120,139 @@ export const api = {
     return json.data;
   },
   prompts: () => fetchList<ApiItem>("/api/prompts"),
+  createPrompt: async (payload: Record<string, unknown>) => {
+    const res = await fetch(`${API_BASE}/api/prompts`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to create prompt");
+    const json = (await res.json()) as OneResp<ApiItem>;
+    return json.data;
+  },
+  updatePrompt: async (id: string | number, payload: Record<string, unknown>) => {
+    const res = await fetch(`${API_BASE}/api/prompts/${id}`, {
+      method: "PATCH",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to update prompt");
+    const json = (await res.json()) as OneResp<ApiItem>;
+    return json.data;
+  },
+  deletePrompt: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/api/prompts/${id}`, { method: "DELETE", headers: authHeaders() });
+    if (!res.ok) throw new Error("Failed to delete prompt");
+    return res.json();
+  },
   promptsByProject: (projectId: number) => fetchList<ApiItem>(withQuery("/api/prompts", { project_id: projectId })),
   content: () => fetchList<ApiItem>("/api/content"),
+  createContent: async (payload: Record<string, unknown>) => {
+    const res = await fetch(`${API_BASE}/api/content`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to create content item");
+    const json = (await res.json()) as OneResp<ApiItem>;
+    return json.data;
+  },
+  updateContent: async (id: string | number, payload: Record<string, unknown>) => {
+    const res = await fetch(`${API_BASE}/api/content/${id}`, {
+      method: "PATCH",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to update content item");
+    const json = (await res.json()) as OneResp<ApiItem>;
+    return json.data;
+  },
+  deleteContent: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/api/content/${id}`, { method: "DELETE", headers: authHeaders() });
+    if (!res.ok) throw new Error("Failed to delete content item");
+    return res.json();
+  },
   contentByProject: (projectId: number) => fetchList<ApiItem>(withQuery("/api/content", { project_id: projectId })),
   aiSessions: () => fetchList<ApiItem>("/api/ai-sessions"),
   aiSessionsByProject: (projectId: number) => fetchList<ApiItem>(withQuery("/api/ai-sessions", { project_id: projectId })),
+  createAiSession: async (payload: Record<string, unknown>) => {
+    const res = await fetch(`${API_BASE}/api/ai-sessions`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to create AI session");
+    const json = (await res.json()) as OneResp<ApiItem>;
+    return json.data;
+  },
+  updateAiSession: async (id: string | number, payload: Record<string, unknown>) => {
+    const res = await fetch(`${API_BASE}/api/ai-sessions/${id}`, {
+      method: "PATCH",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to update AI session");
+    const json = (await res.json()) as OneResp<ApiItem>;
+    return json.data;
+  },
+  deleteAiSession: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/api/ai-sessions/${id}`, { method: "DELETE", headers: authHeaders() });
+    if (!res.ok) throw new Error("Failed to delete AI session");
+    return res.json();
+  },
   tasks: () => fetchList<ApiItem>("/api/tasks"),
+  createTask: async (payload: Record<string, unknown>) => {
+    const res = await fetch(`${API_BASE}/api/tasks`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to create task");
+    const json = (await res.json()) as OneResp<ApiItem>;
+    return json.data;
+  },
+  updateTask: async (id: string | number, payload: Record<string, unknown>) => {
+    const res = await fetch(`${API_BASE}/api/tasks/${id}`, {
+      method: "PATCH",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to update task");
+    const json = (await res.json()) as OneResp<ApiItem>;
+    return json.data;
+  },
+  deleteTask: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/api/tasks/${id}`, { method: "DELETE", headers: authHeaders() });
+    if (!res.ok) throw new Error("Failed to delete task");
+    return res.json();
+  },
   tasksByProject: (projectId: number) => fetchList<ApiItem>(withQuery("/api/tasks", { project_id: projectId })),
   knowledge: () => fetchList<ApiItem>("/api/knowledge"),
+  createKnowledge: async (payload: Record<string, unknown>) => {
+    const res = await fetch(`${API_BASE}/api/knowledge`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to create knowledge note");
+    const json = (await res.json()) as OneResp<ApiItem>;
+    return json.data;
+  },
+  updateKnowledge: async (id: string | number, payload: Record<string, unknown>) => {
+    const res = await fetch(`${API_BASE}/api/knowledge/${id}`, {
+      method: "PATCH",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to update knowledge note");
+    const json = (await res.json()) as OneResp<ApiItem>;
+    return json.data;
+  },
+  deleteKnowledge: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/api/knowledge/${id}`, { method: "DELETE", headers: authHeaders() });
+    if (!res.ok) throw new Error("Failed to delete knowledge note");
+    return res.json();
+  },
   knowledgeByProject: (projectId: number) => fetchList<ApiItem>(withQuery("/api/knowledge", { project_id: projectId })),
   deployments: () => fetchList<ApiItem>("/api/deployments"),
   deploymentsByProject: (projectId: number) => fetchList<ApiItem>(withQuery("/api/deployments", { project_id: projectId })),
@@ -203,6 +328,23 @@ export const api = {
       headers: authHeaders(),
     });
     if (!res.ok) throw new Error("Failed to detach container");
+    const json = (await res.json()) as OneResp<Record<string, unknown>>;
+    return json.data;
+  },
+  generateProjectContext: async (payload: Record<string, unknown>) => {
+    const res = await fetch(`${API_BASE}/api/ai/generate-project-context`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      try {
+        const err = (await res.json()) as { detail?: string };
+        throw new Error(err.detail || "Failed to generate project context");
+      } catch {
+        throw new Error("Failed to generate project context");
+      }
+    }
     const json = (await res.json()) as OneResp<Record<string, unknown>>;
     return json.data;
   },

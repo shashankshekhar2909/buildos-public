@@ -119,6 +119,10 @@ Then access from LAN using your host IP:
 - `AUTH_MODE` (`local`/`auth0`)
 - `AUTH_JWT_SECRET` (local mode)
 - `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_AUDIENCE` (auth0 mode)
+- `AI_CONTEXT_PROVIDER_URL` (OpenAI-compatible base URL, e.g. LiteLLM)
+- `AI_CONTEXT_MODEL` (model id for project context generation)
+- `AI_CONTEXT_API_KEY` (token for provider endpoint)
+- `AI_CONTEXT_TIMEOUT_SECONDS` (default `60`)
 
 ## Authentication Notes
 

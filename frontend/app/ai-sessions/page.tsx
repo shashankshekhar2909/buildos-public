@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Tag } from "@carbon/react";
+import { Tag, Modal, TextInput, TextArea, Select, SelectItem, OverflowMenu, OverflowMenuItem } from "@carbon/react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchToolbar } from "@/components/shared/search-toolbar";
 import { EntityTable } from "@/components/shared/entity-table";
@@ -25,6 +25,17 @@ export default function AISessionsPage() {
   const [toolFilter, setToolFilter] = useState("all");
   const [moduleFilter, setModuleFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [formTitle, setFormTitle] = useState("");
+  const [formTool, setFormTool] = useState("codex");
+  const [formModel, setFormModel] = useState("");
+  const [formModule, setFormModule] = useState("manual");
+  const [formSummary, setFormSummary] = useState("");
+  const [formOutput, setFormOutput] = useState("");
+  const [formTags, setFormTags] = useState("");
+  const [createBusy, setCreateBusy] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [editId, setEditId] = useState<number | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -74,6 +85,34 @@ export default function AISessionsPage() {
       rating: <StarRating value={item.rating} />,
       project: item.project ?? "-",
       date: (item.created_at || item.createdDate || "").toString().slice(0, 10),
+      actions: (
+        <OverflowMenu size="sm" flipped iconDescription="AI session actions">
+          <OverflowMenuItem
+            itemText="Edit"
+            onClick={() => {
+              setEditId(typeof item.id === "number" ? item.id : null);
+              setFormTitle(String(item.title ?? ""));
+              setFormTool(String(item.tool ?? "codex"));
+              setFormModel(String(item.model ?? ""));
+              setFormModule(String(item.source_module ?? "manual"));
+              setFormSummary(String(item.summary ?? ""));
+              setFormOutput(String(item.output_text ?? ""));
+              setFormTags(String(item.tags ?? ""));
+              setCreateError("");
+              setIsCreateOpen(true);
+            }}
+          />
+          <OverflowMenuItem
+            hasDivider
+            isDelete
+            itemText="Delete"
+            onClick={() => {
+              setEditId(typeof item.id === "number" ? item.id : null);
+              setIsDeleteOpen(true);
+            }}
+          />
+        </OverflowMenu>
+      ),
     };
   });
 
@@ -85,7 +124,6 @@ export default function AISessionsPage() {
         actionLabel="Save AI Session"
         onAction={() => setIsCreateOpen(true)}
       />
-      {isCreateOpen && null}
       <EntityTable
         title="AI Sessions"
         loading={loading}
@@ -107,9 +145,94 @@ export default function AISessionsPage() {
           { key: "rating", header: "Rating" },
           { key: "project", header: "Project" },
           { key: "date", header: "Created" },
+          { key: "actions", header: "" },
         ]}
         rows={rows}
       />
+      <Modal
+        open={isCreateOpen}
+        modalHeading={editId ? "Edit AI Session" : "Save AI Session"}
+        primaryButtonText={createBusy ? (editId ? "Saving..." : "Saving...") : (editId ? "Save" : "Save")}
+        secondaryButtonText="Cancel"
+        primaryButtonDisabled={createBusy || !formTitle.trim()}
+        onRequestClose={() => {
+          setIsCreateOpen(false);
+          setCreateError("");
+        }}
+        onRequestSubmit={async () => {
+          setCreateError("");
+          setCreateBusy(true);
+          try {
+            const payload = {
+              title: formTitle.trim(),
+              tool: formTool,
+              model: formModel.trim() || null,
+              source_module: formModule,
+              summary: formSummary.trim() || null,
+              output_text: formOutput.trim() || null,
+              tags: formTags.trim() || null,
+              rating: 0,
+            };
+            if (editId) await api.updateAiSession(editId, payload);
+            else await api.createAiSession(payload);
+            setAiSessions(await api.aiSessions());
+            setIsCreateOpen(false);
+            setEditId(null);
+            setFormTitle("");
+            setFormTool("codex");
+            setFormModel("");
+            setFormModule("manual");
+            setFormSummary("");
+            setFormOutput("");
+            setFormTags("");
+          } catch (e) {
+            setCreateError(e instanceof Error ? e.message : "Failed to save AI session");
+          } finally {
+            setCreateBusy(false);
+          }
+        }}
+      >
+        <TextInput id="ai-title" labelText="Title" value={formTitle} onChange={(e) => setFormTitle(e.currentTarget.value)} />
+        <div style={{ height: "0.75rem" }} />
+        <Select id="ai-tool" labelText="Tool" value={formTool} onChange={(e) => setFormTool(e.currentTarget.value)}>
+          <SelectItem value="codex" text="codex" />
+          <SelectItem value="claude" text="claude" />
+          <SelectItem value="aider" text="aider" />
+        </Select>
+        <div style={{ height: "0.75rem" }} />
+        <TextInput id="ai-model" labelText="Model" value={formModel} onChange={(e) => setFormModel(e.currentTarget.value)} />
+        <div style={{ height: "0.75rem" }} />
+        <Select id="ai-module" labelText="Source Module" value={formModule} onChange={(e) => setFormModule(e.currentTarget.value)}>
+          <SelectItem value="manual" text="manual" />
+          <SelectItem value="projects" text="projects" />
+          <SelectItem value="prompts" text="prompts" />
+          <SelectItem value="architecture" text="architecture" />
+        </Select>
+        <div style={{ height: "0.75rem" }} />
+        <TextInput id="ai-tags" labelText="Tags (comma-separated)" value={formTags} onChange={(e) => setFormTags(e.currentTarget.value)} />
+        <div style={{ height: "0.75rem" }} />
+        <TextArea id="ai-summary" labelText="Summary" rows={3} value={formSummary} onChange={(e) => setFormSummary(e.currentTarget.value)} />
+        <div style={{ height: "0.75rem" }} />
+        <TextArea id="ai-output" labelText="Output Text" rows={6} value={formOutput} onChange={(e) => setFormOutput(e.currentTarget.value)} />
+        {createError ? <p style={{ color: "var(--cds-support-error)", marginTop: "0.75rem" }}>{createError}</p> : null}
+      </Modal>
+      <Modal
+        open={isDeleteOpen}
+        modalHeading="Delete AI Session"
+        danger
+        primaryButtonText="Delete"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => setIsDeleteOpen(false)}
+        onRequestSubmit={async () => {
+          if (!editId) return;
+          await api.deleteAiSession(editId);
+          setAiSessions(await api.aiSessions());
+          setIsDeleteOpen(false);
+          setEditId(null);
+        }}
+      >
+        This AI session will be permanently deleted.
+      </Modal>
     </>
   );
 }

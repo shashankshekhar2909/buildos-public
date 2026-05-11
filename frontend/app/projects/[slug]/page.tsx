@@ -20,6 +20,12 @@ import {
   Column,
   SkeletonText,
   SkeletonPlaceholder,
+  Button,
+  TextArea,
+  TextInput,
+  Checkbox,
+  Accordion,
+  AccordionItem,
 } from "@carbon/react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -39,6 +45,25 @@ export default function ProjectDetailPage() {
   const [projectSessions, setProjectSessions] = useState<ApiItem[]>([]);
   const [projectNotes, setProjectNotes] = useState<ApiItem[]>([]);
   const [projectDeployments, setProjectDeployments] = useState<DeploymentView[]>([]);
+  const [contextGoal, setContextGoal] = useState("");
+  const [contextState, setContextState] = useState("");
+  const [contextStack, setContextStack] = useState("");
+  const [contextAgent, setContextAgent] = useState("codex");
+  const [contextExtra, setContextExtra] = useState("");
+  const [contextFiles, setContextFiles] = useState<string[]>([
+    "AGENTS.md",
+    "CLAUDE.md",
+    "CODEX.md",
+    "PLAN.md",
+    "ARCHITECTURE.md",
+    "UI_SPEC.md",
+    "API_SPEC.md",
+    "DATA_MODEL.md",
+  ]);
+  const [generatedFiles, setGeneratedFiles] = useState<Array<{ filename: string; content: string }>>([]);
+  const [contextError, setContextError] = useState("");
+  const [contextLoading, setContextLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,6 +76,8 @@ export default function ProjectDetailPage() {
           return;
         }
         setProject(p);
+        setContextGoal(String(p.goal ?? ""));
+        setContextStack(String(p.tech_stack ?? ""));
 
         const [tasks, prompts, content, sessions, notes, deployments, allProjects] = await Promise.all([
           api.tasksByProject(p.id),
@@ -167,6 +194,7 @@ export default function ProjectDetailPage() {
           <Tab>AI Sessions</Tab>
           <Tab>Knowledge</Tab>
           <Tab>Deployments</Tab>
+          <Tab>Context</Tab>
         </TabList>
         <TabPanels>
           <TabPanel>
@@ -242,6 +270,217 @@ export default function ProjectDetailPage() {
                   ))}
                 </StructuredListBody>
               </StructuredListWrapper>
+            )}
+          </TabPanel>
+
+          <TabPanel>
+            <Tile className="detail-tile" style={{ marginBottom: "1rem" }}>
+              <Grid fullWidth>
+                <Column sm={4} md={4} lg={8}>
+                  <TextInput
+                    id="context-target-agent"
+                    labelText="Target Agent"
+                    value={contextAgent}
+                    onChange={(e) => setContextAgent(e.currentTarget.value)}
+                  />
+                </Column>
+                <Column sm={4} md={4} lg={8}>
+                  <TextInput
+                    id="context-tech-stack"
+                    labelText="Tech Stack"
+                    value={contextStack}
+                    onChange={(e) => setContextStack(e.currentTarget.value)}
+                  />
+                </Column>
+                <Column sm={4} md={8} lg={16}>
+                  <TextArea
+                    id="context-goal"
+                    labelText="Goal"
+                    rows={3}
+                    value={contextGoal}
+                    onChange={(e) => setContextGoal(e.currentTarget.value)}
+                  />
+                </Column>
+                <Column sm={4} md={8} lg={16}>
+                  <TextArea
+                    id="context-state"
+                    labelText="Current State"
+                    rows={3}
+                    value={contextState}
+                    onChange={(e) => setContextState(e.currentTarget.value)}
+                  />
+                </Column>
+                <Column sm={4} md={8} lg={16}>
+                  <TextArea
+                    id="context-extra"
+                    labelText="Additional Context"
+                    rows={4}
+                    value={contextExtra}
+                    onChange={(e) => setContextExtra(e.currentTarget.value)}
+                  />
+                </Column>
+                <Column sm={4} md={8} lg={16}>
+                  <p style={{ margin: "0 0 0.5rem", color: "var(--cds-text-secondary)" }}>Output Files</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem 1rem" }}>
+                    {[
+                      "AGENTS.md",
+                      "CLAUDE.md",
+                      "CODEX.md",
+                      "PLAN.md",
+                      "ARCHITECTURE.md",
+                      "UI_SPEC.md",
+                      "API_SPEC.md",
+                      "DATA_MODEL.md",
+                    ].map((file) => (
+                      <Checkbox
+                        key={file}
+                        id={`ctx-file-${file}`}
+                        labelText={file}
+                        checked={contextFiles.includes(file)}
+                        onChange={(checked) =>
+                          setContextFiles((prev) =>
+                            checked ? [...prev, file] : prev.filter((f) => f !== file)
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
+                </Column>
+                <Column sm={4} md={8} lg={16}>
+                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+                    <Button
+                      disabled={contextLoading || contextFiles.length === 0}
+                      onClick={async () => {
+                        if (typeof project.id !== "number") return;
+                        setContextError("");
+                        setContextLoading(true);
+                        try {
+                          const out = await api.generateProjectContext({
+                            project_id: project.id,
+                            target_agent: contextAgent || "codex",
+                            desired_files: contextFiles,
+                            goal: contextGoal,
+                            current_state: contextState,
+                            tech_stack: contextStack,
+                            extra_context: contextExtra,
+                          });
+                          const files = Array.isArray(out.files)
+                            ? out.files
+                                .filter((f): f is { filename: string; content: string } => !!f && typeof f === "object")
+                                .map((f) => ({
+                                  filename: String((f as Record<string, unknown>).filename ?? ""),
+                                  content: String((f as Record<string, unknown>).content ?? ""),
+                                }))
+                            : [];
+                          setGeneratedFiles(files);
+                        } catch (e) {
+                          setContextError(e instanceof Error ? e.message : "Failed to generate context");
+                        } finally {
+                          setContextLoading(false);
+                        }
+                      }}
+                    >
+                      {contextLoading ? "Generating..." : "Generate Context Files"}
+                    </Button>
+                    <Button
+                      kind="secondary"
+                      disabled={saveLoading || generatedFiles.length === 0 || typeof project.id !== "number"}
+                      onClick={async () => {
+                        if (typeof project.id !== "number") return;
+                        const merged = generatedFiles
+                          .map((f) => `# ${f.filename}\n\n${f.content}`)
+                          .join("\n\n---\n\n");
+                        setSaveLoading(true);
+                        try {
+                          await api.createAiSession({
+                            title: `Context Pack: ${String(project.name ?? "Project")}`,
+                            tool: "codex",
+                            model: "context-generator",
+                            input_prompt: contextExtra || contextGoal,
+                            output_text: merged,
+                            summary: `Generated ${generatedFiles.length} context files for ${String(project.name ?? "project")}`,
+                            project_id: project.id,
+                            source_module: "project-context-generator",
+                            tags: "context,agents,planning",
+                            rating: 0,
+                          });
+                        } catch (e) {
+                          setContextError(e instanceof Error ? e.message : "Failed to save AI session");
+                        } finally {
+                          setSaveLoading(false);
+                        }
+                      }}
+                    >
+                      {saveLoading ? "Saving..." : "Save To AI Sessions"}
+                    </Button>
+                  </div>
+                </Column>
+              </Grid>
+            </Tile>
+
+            {contextError ? (
+              <InlineNotification
+                kind="error"
+                hideCloseButton
+                lowContrast
+                title="Context generation failed"
+                subtitle={contextError}
+                style={{ marginBottom: "1rem" }}
+              />
+            ) : null}
+
+            {generatedFiles.length === 0 ? (
+              <EmptyState title="No generated files yet" description="Run context generation to review and export markdown files." />
+            ) : (
+              <Accordion align="start">
+                {generatedFiles.map((f) => (
+                  <AccordionItem key={f.filename} title={f.filename}>
+                    <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                      <Button
+                        size="sm"
+                        kind="tertiary"
+                        onClick={() => {
+                          void copyText(f.content);
+                        }}
+                      >
+                        Copy
+                      </Button>
+                      <Button
+                        size="sm"
+                        kind="tertiary"
+                        onClick={() => {
+                          const blob = new Blob([f.content], { type: "text/markdown;charset=utf-8" });
+                          const href = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = href;
+                          a.download = f.filename;
+                          document.body.appendChild(a);
+                          a.click();
+                          a.remove();
+                          URL.revokeObjectURL(href);
+                        }}
+                      >
+                        Export
+                      </Button>
+                    </div>
+                    <pre
+                      style={{
+                        margin: 0,
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        background: "var(--cds-layer)",
+                        padding: "0.75rem",
+                        borderRadius: "4px",
+                        border: "1px solid var(--cds-border-subtle)",
+                        maxHeight: "24rem",
+                        overflow: "auto",
+                      }}
+                    >
+                      {f.content}
+                    </pre>
+                  </AccordionItem>
+                ))}
+              </Accordion>
             )}
           </TabPanel>
 
