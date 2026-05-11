@@ -836,6 +836,21 @@ def sync_docker_projects(session: Session = Depends(get_session)):
     return APIResponse(success=True, data={"created": created}, message="Docker project sync completed")
 
 
+@app.get("/api/ai/context-capabilities")
+def ai_context_capabilities():
+    configured = bool(AI_CONTEXT_PROVIDER_URL and AI_CONTEXT_MODEL and AI_CONTEXT_API_KEY)
+    return APIResponse(
+        success=True,
+        data={
+            "configured": configured,
+            "provider_url": AI_CONTEXT_PROVIDER_URL,
+            "model": AI_CONTEXT_MODEL,
+            "requires": ["AI_CONTEXT_PROVIDER_URL", "AI_CONTEXT_MODEL", "AI_CONTEXT_API_KEY"],
+        },
+        message="OK",
+    )
+
+
 @app.get("/api/projects")
 def list_projects(search: str | None = None, status: str | None = None, category: str | None = None, priority: str | None = None, page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=500), session: Session = Depends(get_session)):
     query = select(Project)

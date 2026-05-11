@@ -356,4 +356,5 @@ export const api = {
     const json = (await res.json()) as OneResp<Record<string, unknown>>;
     return json.data;
   },
+  aiContextCapabilities: () => fetchOne<Record<string, unknown>>("/api/ai/context-capabilities"),
 };

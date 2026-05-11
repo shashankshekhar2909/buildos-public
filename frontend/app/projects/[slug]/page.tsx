@@ -64,6 +64,8 @@ export default function ProjectDetailPage() {
   const [contextError, setContextError] = useState("");
   const [contextLoading, setContextLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [contextConfigured, setContextConfigured] = useState<boolean | null>(null);
+  const [contextProviderLabel, setContextProviderLabel] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -99,6 +101,21 @@ export default function ProjectDetailPage() {
       .catch(() => router.replace("/projects"))
       .finally(() => setLoading(false));
   }, [params.slug, router]);
+
+  useEffect(() => {
+    api
+      .aiContextCapabilities()
+      .then((d) => {
+        setContextConfigured(Boolean(d.configured));
+        const model = String(d.model ?? "");
+        const provider = String(d.provider_url ?? "");
+        setContextProviderLabel([model, provider].filter(Boolean).join(" @ "));
+      })
+      .catch(() => {
+        setContextConfigured(false);
+        setContextProviderLabel("");
+      });
+  }, []);
 
   const techStack = useMemo(
     () =>
@@ -275,6 +292,26 @@ export default function ProjectDetailPage() {
 
           <TabPanel>
             <Tile className="detail-tile" style={{ marginBottom: "1rem" }}>
+              {contextConfigured === false ? (
+                <InlineNotification
+                  kind="warning"
+                  hideCloseButton
+                  lowContrast
+                  title="AI context generation is not configured"
+                  subtitle="Set AI_CONTEXT_PROVIDER_URL, AI_CONTEXT_MODEL, and AI_CONTEXT_API_KEY in backend env."
+                  style={{ marginBottom: "1rem" }}
+                />
+              ) : null}
+              {contextConfigured === true && contextProviderLabel ? (
+                <InlineNotification
+                  kind="info"
+                  hideCloseButton
+                  lowContrast
+                  title="Generator ready"
+                  subtitle={contextProviderLabel}
+                  style={{ marginBottom: "1rem" }}
+                />
+              ) : null}
               <Grid fullWidth>
                 <Column sm={4} md={4} lg={8}>
                   <TextInput
@@ -349,7 +386,7 @@ export default function ProjectDetailPage() {
                 <Column sm={4} md={8} lg={16}>
                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
                     <Button
-                      disabled={contextLoading || contextFiles.length === 0}
+                      disabled={contextLoading || contextFiles.length === 0 || contextConfigured !== true}
                       onClick={async () => {
                         if (typeof project.id !== "number") return;
                         setContextError("");
