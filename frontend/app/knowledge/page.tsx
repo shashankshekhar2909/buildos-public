@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Grid, Column, Tile, Search, Select, SelectItem, Tag, SkeletonText, Modal, TextInput, TextArea, Button } from "@carbon/react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -24,20 +24,15 @@ export default function KnowledgePage() {
 
   useEffect(() => {
     setLoading(true);
-    api.knowledge().then(setKnowledgeNotes).catch(() => undefined).finally(() => setLoading(false));
-  }, []);
-
-  const filtered = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    return knowledgeNotes.filter((note) => {
-      const text = String(note.content ?? note.text ?? "").toLowerCase();
-      const project = String(note.project ?? "").toLowerCase();
-      const source = String(note.source_type ?? "manual");
-      const matchSearch = !term || text.includes(term) || project.includes(term);
-      const matchSource = sourceFilter === "all" || source === sourceFilter;
-      return matchSearch && matchSource;
-    });
-  }, [knowledgeNotes, query, sourceFilter]);
+    api
+      .knowledge({
+        search: query || undefined,
+        source_type: sourceFilter === "all" ? undefined : sourceFilter,
+      })
+      .then(setKnowledgeNotes)
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
+  }, [query, sourceFilter]);
 
   return (
     <>
@@ -75,14 +70,14 @@ export default function KnowledgePage() {
 
       {loading ? (
         <SkeletonText paragraph lineCount={8} width="100%" />
-      ) : filtered.length === 0 ? (
+      ) : knowledgeNotes.length === 0 ? (
         <EmptyState
           title="No notes match"
           description="Try a different search term or clear the filter."
         />
       ) : (
         <Grid fullWidth>
-          {filtered.map((note, i) => {
+          {knowledgeNotes.map((note, i) => {
             const project = String(note.project ?? "");
             return (
               <Column key={`${note.id ?? i}`} sm={4} md={4} lg={8} className="column--stack">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Tag, Modal, TextInput, TextArea, Select, SelectItem, OverflowMenu, OverflowMenuItem } from "@carbon/react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchToolbar } from "@/components/shared/search-toolbar";
@@ -39,25 +39,18 @@ export default function AISessionsPage() {
 
   useEffect(() => {
     setLoading(true);
-    api.aiSessions().then(setAiSessions).catch(() => undefined).finally(() => setLoading(false));
-  }, []);
+    api
+      .aiSessions({
+        search: searchQ || undefined,
+        tool: toolFilter === "all" ? undefined : toolFilter,
+        source_module: moduleFilter === "all" ? undefined : moduleFilter,
+      })
+      .then(setAiSessions)
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
+  }, [searchQ, toolFilter, moduleFilter]);
 
-  const filtered = useMemo(() => {
-    const term = searchQ.trim().toLowerCase();
-    return aiSessions.filter((item) => {
-      const matchSearch =
-        !term ||
-        String(item.title ?? "").toLowerCase().includes(term) ||
-        String(item.project ?? "").toLowerCase().includes(term);
-      const tool = String(item.tool ?? "").toLowerCase();
-      const matchTool = toolFilter === "all" || tool === toolFilter.toLowerCase();
-      const srcModule = String(item.source_module ?? item.sourceModule ?? "").toLowerCase();
-      const matchModule = moduleFilter === "all" || srcModule === moduleFilter.toLowerCase();
-      return matchSearch && matchTool && matchModule;
-    });
-  }, [aiSessions, searchQ, toolFilter, moduleFilter]);
-
-  const rows = filtered.map((item, i) => {
+  const rows = aiSessions.map((item, i) => {
     const rawTags: string[] = Array.isArray(item.tags)
       ? (item.tags as string[])
       : String(item.tags ?? "")

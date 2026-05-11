@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal, TextInput, TextArea, Select, SelectItem, OverflowMenu, OverflowMenuItem } from "@carbon/react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchToolbar } from "@/components/shared/search-toolbar";
@@ -37,24 +37,18 @@ export default function PromptsPage() {
 
   useEffect(() => {
     setLoading(true);
-    api.prompts().then(setPrompts).catch(() => undefined).finally(() => setLoading(false));
-  }, []);
+    api
+      .prompts({
+        search: searchQ || undefined,
+        category: categoryFilter === "all" ? undefined : categoryFilter,
+        recommended_tool: toolFilter === "all" ? undefined : toolFilter,
+      })
+      .then(setPrompts)
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
+  }, [searchQ, categoryFilter, toolFilter]);
 
-  const filtered = useMemo(() => {
-    const term = searchQ.trim().toLowerCase();
-    return prompts.filter((p) => {
-      const matchSearch =
-        !term ||
-        String(p.title ?? "").toLowerCase().includes(term) ||
-        String(p.category ?? "").toLowerCase().includes(term);
-      const matchCategory = categoryFilter === "all" || String(p.category ?? "") === categoryFilter;
-      const tool = String(p.recommended_tool ?? p.recommendedTool ?? "").toLowerCase();
-      const matchTool = toolFilter === "all" || tool === toolFilter.toLowerCase();
-      return matchSearch && matchCategory && matchTool;
-    });
-  }, [prompts, searchQ, categoryFilter, toolFilter]);
-
-  const rows = filtered.map((p, i) => ({
+  const rows = prompts.map((p, i) => ({
     id: `${p.id ?? i}`,
     title: (
       <span className="cell--truncate" title={String(p.title ?? "")}>

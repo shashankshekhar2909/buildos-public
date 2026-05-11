@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Tag, Modal, TextInput, TextArea, Select, SelectItem, OverflowMenu, OverflowMenuItem } from "@carbon/react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchToolbar } from "@/components/shared/search-toolbar";
@@ -34,23 +34,18 @@ export default function ContentPage() {
 
   useEffect(() => {
     setLoading(true);
-    api.content().then(setContentItems).catch(() => undefined).finally(() => setLoading(false));
-  }, []);
+    api
+      .content({
+        search: searchQ || undefined,
+        platform: platformFilter === "all" ? undefined : platformFilter,
+        status: statusFilter === "all" ? undefined : statusFilter,
+      })
+      .then(setContentItems)
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
+  }, [searchQ, platformFilter, statusFilter]);
 
-  const filtered = useMemo(() => {
-    const term = searchQ.trim().toLowerCase();
-    return contentItems.filter((item) => {
-      const matchSearch =
-        !term ||
-        String(item.title ?? "").toLowerCase().includes(term) ||
-        String(item.hook ?? "").toLowerCase().includes(term);
-      const matchPlatform = platformFilter === "all" || String(item.platform ?? "") === platformFilter;
-      const matchStatus = statusFilter === "all" || String(item.status ?? "") === statusFilter;
-      return matchSearch && matchPlatform && matchStatus;
-    });
-  }, [contentItems, searchQ, platformFilter, statusFilter]);
-
-  const rows = filtered.map((item, i) => {
+  const rows = contentItems.map((item, i) => {
     const platform = String(item.platform ?? "");
     const contentType = String(item.content_type ?? item.contentType ?? "");
     const titleStr = String(item.title ?? "-");

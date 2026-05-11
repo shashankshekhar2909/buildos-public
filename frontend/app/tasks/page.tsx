@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Modal, TextInput, TextArea, Select, SelectItem, OverflowMenu, OverflowMenuItem } from "@carbon/react";
 import { Checkmark } from "@carbon/icons-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -28,21 +28,16 @@ export default function TasksPage() {
 
   useEffect(() => {
     setLoading(true);
-    api.tasks().then(setTasks).catch(() => undefined).finally(() => setLoading(false));
-  }, []);
-
-  const filtered = useMemo(() => {
-    const term = searchQ.trim().toLowerCase();
-    return tasks.filter((t) => {
-      const matchSearch =
-        !term ||
-        String(t.title ?? "").toLowerCase().includes(term) ||
-        String(t.project ?? "").toLowerCase().includes(term);
-      const matchStatus = statusFilter === "all" || String(t.status ?? "") === statusFilter;
-      const matchPriority = priorityFilter === "all" || String(t.priority ?? "") === priorityFilter;
-      return matchSearch && matchStatus && matchPriority;
-    });
-  }, [tasks, searchQ, statusFilter, priorityFilter]);
+    api
+      .tasks({
+        search: searchQ || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        priority: priorityFilter === "all" ? undefined : priorityFilter,
+      })
+      .then(setTasks)
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
+  }, [searchQ, statusFilter, priorityFilter]);
 
   const markDone = async (id: string) => {
     const task = tasks.find((t, i) => String(t.id ?? i) === id);
@@ -55,7 +50,7 @@ export default function TasksPage() {
     }
   };
 
-  const rows = filtered.map((task, i) => {
+  const rows = tasks.map((task, i) => {
     const id = `${task.id ?? i}`;
     const status = String(task.status ?? "open");
     const isDone = status === "done";

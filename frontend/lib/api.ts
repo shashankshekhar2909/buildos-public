@@ -68,7 +68,8 @@ async function fetchOne<T>(path: string): Promise<T> {
 
 export const api = {
   baseUrl: API_BASE,
-  projects: () => fetchList<ApiItem>(withQuery("/api/projects", { page: 1, page_size: 500 })),
+  projects: (query?: Record<string, string | number | boolean | undefined | null>) =>
+    fetchList<ApiItem>(withQuery("/api/projects", { page: 1, page_size: 500, ...(query || {}) })),
   createProject: async (payload: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/api/projects`, {
       method: "POST",
@@ -119,7 +120,8 @@ export const api = {
     const json = (await res.json()) as OneResp<Record<string, unknown>>;
     return json.data;
   },
-  prompts: () => fetchList<ApiItem>("/api/prompts"),
+  prompts: (query?: Record<string, string | number | boolean | undefined | null>) =>
+    fetchList<ApiItem>(withQuery("/api/prompts", { ...(query || {}) })),
   createPrompt: async (payload: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/api/prompts`, {
       method: "POST",
@@ -146,7 +148,8 @@ export const api = {
     return res.json();
   },
   promptsByProject: (projectId: number) => fetchList<ApiItem>(withQuery("/api/prompts", { project_id: projectId })),
-  content: () => fetchList<ApiItem>("/api/content"),
+  content: (query?: Record<string, string | number | boolean | undefined | null>) =>
+    fetchList<ApiItem>(withQuery("/api/content", { ...(query || {}) })),
   createContent: async (payload: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/api/content`, {
       method: "POST",
@@ -173,7 +176,8 @@ export const api = {
     return res.json();
   },
   contentByProject: (projectId: number) => fetchList<ApiItem>(withQuery("/api/content", { project_id: projectId })),
-  aiSessions: () => fetchList<ApiItem>("/api/ai-sessions"),
+  aiSessions: (query?: Record<string, string | number | boolean | undefined | null>) =>
+    fetchList<ApiItem>(withQuery("/api/ai-sessions", { ...(query || {}) })),
   aiSessionsByProject: (projectId: number) => fetchList<ApiItem>(withQuery("/api/ai-sessions", { project_id: projectId })),
   createAiSession: async (payload: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/api/ai-sessions`, {
@@ -200,7 +204,8 @@ export const api = {
     if (!res.ok) throw new Error("Failed to delete AI session");
     return res.json();
   },
-  tasks: () => fetchList<ApiItem>("/api/tasks"),
+  tasks: (query?: Record<string, string | number | boolean | undefined | null>) =>
+    fetchList<ApiItem>(withQuery("/api/tasks", { ...(query || {}) })),
   createTask: async (payload: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/api/tasks`, {
       method: "POST",
@@ -227,7 +232,8 @@ export const api = {
     return res.json();
   },
   tasksByProject: (projectId: number) => fetchList<ApiItem>(withQuery("/api/tasks", { project_id: projectId })),
-  knowledge: () => fetchList<ApiItem>("/api/knowledge"),
+  knowledge: (query?: Record<string, string | number | boolean | undefined | null>) =>
+    fetchList<ApiItem>(withQuery("/api/knowledge", { ...(query || {}) })),
   createKnowledge: async (payload: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/api/knowledge`, {
       method: "POST",
@@ -254,9 +260,11 @@ export const api = {
     return res.json();
   },
   knowledgeByProject: (projectId: number) => fetchList<ApiItem>(withQuery("/api/knowledge", { project_id: projectId })),
-  deployments: () => fetchList<ApiItem>("/api/deployments"),
+  deployments: (query?: Record<string, string | number | boolean | undefined | null>) =>
+    fetchList<ApiItem>(withQuery("/api/deployments", { ...(query || {}) })),
   deploymentsByProject: (projectId: number) => fetchList<ApiItem>(withQuery("/api/deployments", { project_id: projectId })),
-  users: () => fetchList<ApiItem>("/api/users"),
+  users: (query?: Record<string, string | number | boolean | undefined | null>) =>
+    fetchList<ApiItem>(withQuery("/api/users", { ...(query || {}) })),
   createUser: async (payload: Record<string, unknown>) => {
     const res = await fetch(`${API_BASE}/api/users`, {
       method: "POST",
