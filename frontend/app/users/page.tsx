@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Button,
   Column,
@@ -20,6 +20,7 @@ import { EntityTable } from "@/components/shared/entity-table";
 import { api } from "@/lib/api";
 import type { ApiItem } from "@/lib/api";
 import { getAuthMode } from "@/lib/auth";
+import { useAuthContext } from "@/components/shell/app-shell";
 
 // ── Local form shape ────────────────────────────────────────────────────────
 
@@ -50,7 +51,7 @@ function StatusTag({ status }: { status: string }) {
   );
 }
 
-function UserCard({ user, onToggleActive }: { user: ApiItem; onToggleActive: (user: ApiItem) => void }) {
+function UserCard({ user, onToggleActive, isAdmin }: { user: ApiItem; onToggleActive: (user: ApiItem) => void; isAdmin: boolean }) {
   const status = user.is_active ? "active" : "inactive";
   return (
     <Tile className="user-card">
@@ -61,11 +62,13 @@ function UserCard({ user, onToggleActive }: { user: ApiItem; onToggleActive: (us
         <StatusTag status={status} />
       </div>
       <p className="user-card__meta">Since {String(user.created_at ?? "").slice(0, 10)}</p>
-      <div style={{ marginTop: "var(--space-sm)" }}>
-        <Button kind="ghost" size="sm" onClick={() => onToggleActive(user)}>
-          {user.is_active ? "Set Inactive" : "Set Active"}
-        </Button>
-      </div>
+      {isAdmin ? (
+        <div style={{ marginTop: "var(--space-sm)" }}>
+          <Button kind="ghost" size="sm" onClick={() => onToggleActive(user)}>
+            {user.is_active ? "Set Inactive" : "Set Active"}
+          </Button>
+        </div>
+      ) : null}
     </Tile>
   );
 }
@@ -73,6 +76,7 @@ function UserCard({ user, onToggleActive }: { user: ApiItem; onToggleActive: (us
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
+  const { isAdmin } = useAuthContext();
   const authMode = getAuthMode();
   const isLocalAuth = authMode === "local";
   const [users, setUsers] = useState<ApiItem[]>([]);
@@ -89,7 +93,7 @@ export default function UsersPage() {
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [loading, setLoading] = useState(true);
 
-  const refreshUsers = async () => {
+  const refreshUsers = useCallback(async () => {
     try {
       const data = await api.users({
         search: searchQ || undefined,
@@ -106,12 +110,12 @@ export default function UsersPage() {
     } catch {
       setApiError("Could not load users from backend.");
     }
-  };
+  }, [roleFilter, searchQ, statusFilter]);
 
   useEffect(() => {
     setLoading(true);
     void refreshUsers().finally(() => setLoading(false));
-  }, [searchQ, roleFilter, statusFilter]);
+  }, [refreshUsers]);
 
   const onAddUser = async () => {
     const trimmedName = form.name.trim();
@@ -164,7 +168,7 @@ export default function UsersPage() {
     role: <RoleTag role={String(u.role ?? "member")} />,
     status: <StatusTag status={u.is_active ? "active" : "inactive"} />,
     since: String(u.created_at ?? "").slice(0, 10),
-    actions: (
+    actions: isAdmin ? (
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
         <Button kind="ghost" size="sm" onClick={() => void onToggleActive(u)}>
           {u.is_active ? "Set Inactive" : "Set Active"}
@@ -175,7 +179,7 @@ export default function UsersPage() {
           </Button>
         ) : null}
       </div>
-    ),
+    ) : null,
   }));
 
   return (
@@ -298,7 +302,7 @@ export default function UsersPage() {
         <Grid fullWidth>
           {users.map((user) => (
             <Column key={String(user.id ?? user.username ?? user.email ?? "")} sm={4} md={4} lg={4} className="column--stack">
-              <UserCard user={user} onToggleActive={onToggleActive} />
+              <UserCard user={user} onToggleActive={onToggleActive} isAdmin={isAdmin} />
             </Column>
           ))}
         </Grid>

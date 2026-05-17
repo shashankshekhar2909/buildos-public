@@ -23,6 +23,7 @@ import { StatusTag } from "@/components/shared/tags";
 import { api, type ApiItem } from "@/lib/api";
 import { copyText } from "@/lib/clipboard";
 import { fallbackDeployments, mapDeploymentRows, type DeploymentView } from "@/lib/deployments";
+import { useAuthContext } from "@/components/shell/app-shell";
 
 type DeploymentForm = {
   project_id: string;
@@ -115,6 +116,7 @@ function toForm(row: ApiItem): DeploymentForm {
 }
 
 export default function DeploymentsPage() {
+  const { isAdmin } = useAuthContext();
   const [deployments, setDeployments] = useState<DeploymentView[]>(fallbackDeployments());
   const [deploymentRows, setDeploymentRows] = useState<ApiItem[]>([]);
   const [projects, setProjects] = useState<ApiItem[]>([]);
@@ -136,7 +138,7 @@ export default function DeploymentsPage() {
   const [activeId, setActiveId] = useState<string>("");
   const [form, setForm] = useState<DeploymentForm>(emptyForm);
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     setLoading(true);
     const selectedProject = deployments.find((d) => d.project === projectFilter);
     return Promise.all([
@@ -166,11 +168,11 @@ export default function DeploymentsPage() {
       })
       .catch(() => setError("Backend unavailable. Showing fallback data."))
       .finally(() => setLoading(false));
-  };
+  }, [deployments, envFilter, projectFilter, q, statusFilter]);
 
   useEffect(() => {
     void refresh();
-  }, [q, statusFilter, envFilter, projectFilter]);
+  }, [refresh]);
 
   const projectOptions = useMemo(() => unique(deployments.map((d) => d.project)), [deployments]);
 
@@ -288,24 +290,28 @@ export default function DeploymentsPage() {
                 }
               />
             </OverflowMenu>
-            <Button size="sm" kind="ghost" onClick={() => openEdit(d.id)}>
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              kind="danger--ghost"
-              onClick={() => {
-                setActiveId(d.id);
-                setIsDeleteOpen(true);
-              }}
-            >
-              Delete
-            </Button>
+            {isAdmin ? (
+              <Button size="sm" kind="ghost" onClick={() => openEdit(d.id)}>
+                Edit
+              </Button>
+            ) : null}
+            {isAdmin ? (
+              <Button
+                size="sm"
+                kind="danger--ghost"
+                onClick={() => {
+                  setActiveId(d.id);
+                  setIsDeleteOpen(true);
+                }}
+              >
+                Delete
+              </Button>
+            ) : null}
           </div>
         ),
       });
       }),
-    [deployments, openEdit, projects]
+    [deployments, isAdmin, openEdit, projects]
   );
 
   const formFields = (

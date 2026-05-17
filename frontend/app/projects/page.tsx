@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Button,
@@ -15,12 +15,15 @@ import {
   InlineNotification,
   Tag,
 } from "@carbon/react";
+import { ContentSwitcher, Switch } from "@carbon/react";
+import { FolderDetails as FolderIcon, Launch } from "@carbon/icons-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchToolbar } from "@/components/shared/search-toolbar";
 import { EntityTable } from "@/components/shared/entity-table";
 import { PriorityTag, StatusTag } from "@/components/shared/tags";
 import { api } from "@/lib/api";
 import type { ApiItem } from "@/lib/api";
+import { useAuthContext } from "@/components/shell/app-shell";
 
 type ProjectForm = {
   name: string;
@@ -50,6 +53,7 @@ function slugify(value: string): string {
 }
 
 export default function ProjectsPage() {
+  const { isAdmin } = useAuthContext();
   const [projects, setProjects] = useState<ApiItem[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [projectForm, setProjectForm] = useState<ProjectForm>(emptyProject);
@@ -72,8 +76,9 @@ export default function ProjectsPage() {
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
 
-  const refreshProjects = async () => {
+  const refreshProjects = useCallback(async () => {
     try {
       const data = await api.projects({
         search: searchQ || undefined,
@@ -85,12 +90,12 @@ export default function ProjectsPage() {
     } catch {
       setApiError("Could not load projects. Check that the backend is running.");
     }
-  };
+  }, [searchQ, statusFilter, priorityFilter]);
 
   useEffect(() => {
     setLoading(true);
     refreshProjects().finally(() => setLoading(false));
-  }, [searchQ, statusFilter, priorityFilter]);
+  }, [refreshProjects]);
 
   const openFiles = async (project: ApiItem, path = ".") => {
     try {
@@ -144,9 +149,11 @@ export default function ProjectsPage() {
       <>
         <Button as={Link} href={`/projects/${project.slug}`} kind="ghost" size="sm">Open</Button>
         <Button kind="ghost" size="sm" onClick={() => void openFiles(project)}>Browse Files</Button>
-        <OverflowMenu size="sm" flipped>
-          <OverflowMenuItem itemText="Edit" />
-        </OverflowMenu>
+        {isAdmin ? (
+          <OverflowMenu size="sm" flipped>
+            <OverflowMenuItem itemText="Edit" />
+          </OverflowMenu>
+        ) : null}
       </>
     ),
   };
@@ -226,34 +233,86 @@ export default function ProjectsPage() {
         />
       )}
 
-      <div style={{ marginBottom: "var(--space-md)", display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
-        <Button kind="tertiary" onClick={() => setIsRootOpen(true)}>Add Directory</Button>
-        <Button kind="secondary" onClick={() => { void openFinder(); }}>Find Existing Projects</Button>
+      <div style={{ marginBottom: "var(--space-md)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+        <ContentSwitcher
+          size="sm"
+          selectedIndex={viewMode === "grid" ? 0 : 1}
+          onChange={({ index }) => setViewMode(index === 0 ? "grid" : "table")}
+          style={{ maxWidth: "16rem" }}
+        >
+          <Switch name="grid" text="Grid" />
+          <Switch name="table" text="Table" />
+        </ContentSwitcher>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <Button kind="tertiary" onClick={() => setIsRootOpen(true)}>Add Directory</Button>
+          <Button kind="secondary" onClick={() => { void openFinder(); }}>Find Existing Projects</Button>
+        </div>
       </div>
 
-      <EntityTable
-        title="Projects"
-        loading={loading}
-        toolbar={
-          <SearchToolbar
-            searchLabel="Search projects"
-            searchValue={searchQ}
-            onSearch={setSearchQ}
-            filterA={{ id: "status", label: "Status", items: ["active", "paused", "planned"], value: statusFilter, onChange: setStatusFilter }}
-            filterB={{ id: "priority", label: "Priority", items: ["critical", "high", "medium", "low"], value: priorityFilter, onChange: setPriorityFilter }}
-          />
-        }
-        headers={[
-          { key: "name", header: "Name" },
-          { key: "category", header: "Category" },
-          { key: "status", header: "Status" },
-          { key: "priority", header: "Priority" },
-          { key: "git", header: "Git Origin" },
-          { key: "updated", header: "Updated" },
-          { key: "actions", header: "Actions" },
-        ]}
-        rows={rows}
-      />
+      <div style={{ marginBottom: "var(--space-md)" }}>
+        <SearchToolbar
+          searchLabel="Search projects"
+          searchValue={searchQ}
+          onSearch={setSearchQ}
+          filterA={{ id: "status", label: "Status", items: ["active", "paused", "planned"], value: statusFilter, onChange: setStatusFilter }}
+          filterB={{ id: "priority", label: "Priority", items: ["critical", "high", "medium", "low"], value: priorityFilter, onChange: setPriorityFilter }}
+        />
+      </div>
+
+      {viewMode === "grid" ? (
+        <div className="project-grid">
+          {projects.map((project, i) => {
+            const status = String(project.status ?? "idea");
+            const accent = status === "active" ? "green" : status === "paused" ? "warm-gray" : status === "planned" ? "blue" : "gray";
+            const gitUrl = String(project.github_url ?? project.git_url ?? project.repo_url ?? project.html_url ?? project.clone_url ?? "");
+            return (
+              <Link key={String(project.id ?? i)} href={`/projects/${project.slug}`} className="project-card-link">
+                <div className={`project-card project-card--${accent}`}>
+                  <div className="project-card__head">
+                    <span className={`project-card__icon project-card__icon--${accent}`}><FolderIcon size={18} /></span>
+                    <div className="project-card__title-wrap">
+                      <h3 className="project-card__title">{String(project.name ?? "")}</h3>
+                      <p className="project-card__category">{String(project.category ?? "-")}</p>
+                    </div>
+                  </div>
+                  <p className="project-card__goal">{String(project.goal ?? "—")}</p>
+                  <div className="project-card__tags">
+                    <StatusTag value={status} />
+                    <PriorityTag value={String(project.priority ?? "low")} />
+                  </div>
+                  <div className="project-card__foot">
+                    <span className="project-card__meta">{(project.updated_at || "").toString().slice(0, 10) || "—"}</span>
+                    {gitUrl ? (
+                      <span className="project-card__git" title={gitUrl}><Launch size={12} /> git</span>
+                    ) : null}
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+          {projects.length === 0 && !loading ? (
+            <div className="empty-state" style={{ gridColumn: "1 / -1" }}>
+              <h3 className="empty-state__title">No projects yet</h3>
+              <p className="empty-state__description">Create one or import existing repos from disk.</p>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <EntityTable
+          title="Projects"
+          loading={loading}
+          headers={[
+            { key: "name", header: "Name" },
+            { key: "category", header: "Category" },
+            { key: "status", header: "Status" },
+            { key: "priority", header: "Priority" },
+            { key: "git", header: "Git Origin" },
+            { key: "updated", header: "Updated" },
+            { key: "actions", header: "Actions" },
+          ]}
+          rows={rows}
+        />
+      )}
 
       {/* Create Project Modal */}
       <Modal
